@@ -1,4 +1,4 @@
-## this is the implementation of a lltm kernel from the official tutorial in Pytorch
+## This is the implementation of a lltm kernel from the official tutorial in Pytorch
 
 ### run in extensionCpp repository:
 ```bash
