@@ -1,0 +1,9 @@
+[submodule "extensionMatmul/third-party/extensionMatmul/third-party/magic_enum"]
+	path = extensionMatmul/third-party/extensionMatmul/third-party/magic_enum
+	url = https://github.com/Neargye/magic_enum.git
+[submodule "extensionMatmul/third-party/magic_enum"]
+	path = extensionMatmul/third-party/magic_enum
+	url = https://github.com/Neargye/magic_enum.git
+[submodule "extensionMatmul/third-party/cuMat"]
+	path = extensionMatmul/third-party/cuMat
+	url = https://github.com/shamanDevel/cuMat.git
