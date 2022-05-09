@@ -3,8 +3,8 @@
 #include <vector>
 
 // CUDA forward declarations
-
-std::vector<torch::Tensor> matmul_cuda_forward(
+// from .cu !!
+__global__ void matmul_cuda_forward(
     torch::Tensor input,
     torch::Tensor weights,
     torch::Tensor bias);
@@ -20,7 +20,7 @@ std::vector<torch::Tensor> matmul_cuda_backward(
 #define CHECK_CONTIGUOUS(x) AT_ASSERTM(x.is_contiguous(), #x " must be contiguous")
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
-std::vector<torch::Tensor> matmul_forward(
+torch::Tensor matmul_forward( //attention std::vector
     torch::Tensor input,
     torch::Tensor weights,
     torch::Tensor bias) {
@@ -28,7 +28,8 @@ std::vector<torch::Tensor> matmul_forward(
   CHECK_INPUT(weights);
   CHECK_INPUT(bias);
  
-  return matmul_cuda_forward(input, weights, bias);
+  matmul_cuda_forward(input, weights, bias);
+  return input
 }
 
 std::vector<torch::Tensor> matmul_backward(
@@ -41,6 +42,8 @@ std::vector<torch::Tensor> matmul_backward(
       grad_h,
       grad_cell);
 }
+
+
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("forward", &matmul_forward, "Matmul forward (CUDA)");

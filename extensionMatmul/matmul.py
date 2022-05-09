@@ -17,7 +17,7 @@ class MatmulFunction(Function):
         #variables = output[1:] + [weights]
         ctx.save_for_backward(input, weights, bias)
 
-        return output[0]
+        return output
 
     @staticmethod
     def backward(ctx, grad_h, grad_cell):
@@ -43,3 +43,4 @@ class Matmul(nn.Module):
 
     def forward(self, input, weights, bias):
         return MatmulFunction.apply(input, weights, bias)
+        #pay attention to here
