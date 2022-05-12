@@ -51,7 +51,7 @@
 namespace py = pybind11;
 // //using namespace renderer;
 
-// #include <cmrc/cmrc.hpp>
+// #include "cmrc.hpp"
 // CMRC_DECLARE(kernels);
 // NOTE: AT_ASSERT has become AT_CHECK on master after 0.4.
 #define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
@@ -261,11 +261,11 @@ torch::Tensor evaluate(
 // }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  // renderer::KernelLoader::Instance().initCuda();
-	// renderer::KernelLoader::Instance().setCudaCacheDir(getCacheDir());
-	// renderer::KernelLoader::Instance().setCustomCudaSourcesLoader(staticCudaSourcesLoader);
-	// cuMat::Context& ctx = cuMat::Context::current();
-	// ((void)ctx);
+//   renderer::KernelLoader::Instance().initCuda();
+// 	renderer::KernelLoader::Instance().setCudaCacheDir(getCacheDir());
+// 	renderer::KernelLoader::Instance().setCustomCudaSourcesLoader(staticCudaSourcesLoader);
+// 	cuMat::Context& ctx = cuMat::Context::current();
+// 	((void)ctx);
   // m.def("forward", &matmul_forward, "Matmul forward (CUDA)");
   // m.def("backward", &matmul_backward, "Matmul backward (CUDA)");
   m.def("evaluate", &evaluate, "Matmul evaluate (CUDA)");

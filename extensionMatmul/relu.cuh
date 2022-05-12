@@ -48,7 +48,7 @@ __global__ void EvaluateNoBatches2(
     //printf(blockIdx.y);
     if (blockIdx.x == 0 && threadIdx.x == 0){
       for (int i  = 0; i<positionsInput.size(0); ++i){
-        printf("1");
+        printf("3");
       };
       for (int i  = 0; i<positionsInput.size(1); ++i){
         printf("2");

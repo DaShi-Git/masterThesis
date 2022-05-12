@@ -142,8 +142,10 @@ bool renderer::KernelLoader::loadCUDASources(bool no_log)
 	if (!includeFiles.empty()) return false;
 
 	// load files
+	// std::cout << "customCudaSourcesLoader " << customCudaSourcesLoader << std::endl;
 	if (customCudaSourcesLoader)
 	{
+		printf("get in customCudaSourceLoader");
 		customCudaSourcesLoader(includeFiles);
 	}
 	else
@@ -200,6 +202,10 @@ std::optional<renderer::KernelLoader::KernelFunction> renderer::KernelLoader::ge
 	const std::vector<std::string>& constantNames, 
 	bool noCache, bool noThrow)
 {
+	if (exists(CACHE_DIR)){
+	remove_all(CACHE_DIR);
+	std::cout << "Removed_all cache directory at " << absolute(CACHE_DIR) << std::endl;
+	}
 	loadKernelCache(!noThrow);
 
 	SHA1 sha;
@@ -325,8 +331,11 @@ void renderer::KernelLoader::loadKernelCache(bool no_log)
 	fs::path cacheFile;
 	// debug
 	std::cout << "customKernelCacheFile.empty() " << customKernelCacheFile.empty() << std::endl;
+	std::cout << "customKernelCacheFile " << customKernelCacheFile << std::endl;
 	std::cout << "CACHE_DIR.empty() " << CACHE_DIR.empty() << std::endl;
+	std::cout << "CACHE_DIR " << CACHE_DIR << std::endl;
 	std::cout << "kernelStorage.empty() " << kernelStorage.empty() << std::endl;
+	std::cout << "kernelStorage " << kernelStorage << std::endl;
 	//debug
 	if (customKernelCacheFile.empty()) {
 		if (CACHE_DIR.empty()) return;
