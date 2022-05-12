@@ -1,20 +1,20 @@
 #pragma once
 //#include <torch/extension.h>
-
+//#include <iostream>
 // #include <cuda.h>
 // #include <cuda_runtime.h>
 
 //#include <vector>
-
+#include"arbitaryActivation.cuh"
 
 #include "renderer_commons.cuh"
 #include "renderer_tensor.cuh"
 #include "renderer_utils.cuh"
 // namespace {
-// template <typename scalar_t>
-// __device__ __forceinline__ scalar_t relu(scalar_t z) {
-//   return z>0.0? z:0.0;//1.0 / (1.0 + exp(-z));
-// }
+template <typename scalar_t>
+__device__ __forceinline__ scalar_t arbiacti(scalar_t z) {
+  return z>0.5? z:0.5;//1.0 / (1.0 + exp(-z));
+}
  // namespace  
  // namespace must be ending here, otherwise error by importing matmul_cuda, undefined matmul_cuda_backword
 
@@ -48,12 +48,16 @@ __global__ void EvaluateNoBatches2(
     //printf(blockIdx.y);
     if (blockIdx.x == 0 && threadIdx.x == 0){
       for (int i  = 0; i<positionsInput.size(0); ++i){
-        printf("3");
+        printf("7");
       };
       for (int i  = 0; i<positionsInput.size(1); ++i){
         printf("2");
       };
+      printf("evaluta arbiacti, %f", arbiacti(-0.8));
     };
+
+    //std::cout << "activation test " << arbiacti(0.3) << std::endl;
+    
     
 
 // printf("12233");

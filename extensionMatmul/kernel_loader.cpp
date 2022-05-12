@@ -139,6 +139,7 @@ void renderer::KernelLoader::unittestDisableVerboseCompilerLogOverride()
 
 bool renderer::KernelLoader::loadCUDASources(bool no_log)
 {
+	std::cout << "includeFiles.empty() " << includeFiles.empty() << std::endl;
 	if (!includeFiles.empty()) return false;
 
 	// load files
@@ -185,8 +186,10 @@ bool renderer::KernelLoader::loadCUDASources(bool no_log)
 
 	// compute hashes
 	SHA1 sha1;
-	for (const auto& e : includeFiles)
+	for (const auto& e : includeFiles){
 		sha1.update(e.content);
+		std::cout << "e : includeFiles " << e.content << std::endl;
+	}
 
 	sha1.update(CUMAT_STR(USE_DOUBLE_PRECISION));
 	sha1.update(std::to_string(debugMode));
