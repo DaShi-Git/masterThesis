@@ -11,10 +11,10 @@
 #include "renderer_tensor.cuh"
 #include "renderer_utils.cuh"
 // namespace {
-template <typename scalar_t>
-__device__ __forceinline__ scalar_t arbiacti(scalar_t z) {
-  return z>0.5? z:0.5;//1.0 / (1.0 + exp(-z));
-}
+// template <typename scalar_t>
+// __device__ __forceinline__ scalar_t arbiacti(scalar_t z) {
+//   return z>0.5? z:0.5;//1.0 / (1.0 + exp(-z));
+// }
  // namespace  
  // namespace must be ending here, otherwise error by importing matmul_cuda, undefined matmul_cuda_backword
 

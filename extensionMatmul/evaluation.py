@@ -12,7 +12,7 @@ assert torch.cuda.is_available()
 cuda_device = torch.device("cuda")  # device object representing GPU
 activation = ["template <typename scalar_t>",
 "__device__ __forceinline__ scalar_t arbiacti(scalar_t z) {",
-"return z>0.0? z:7.0;//1.0 / (1.0 + exp(-z));",
+"return z>0.0? z:8.0;//1.0 / (1.0 + exp(-z));",
 "}"]
 #arbitActivation = ArbitActivation()
 writeActivation(activation, truncate=True)
