@@ -12,7 +12,7 @@ Source Codes:
 ```sh
 conda create -n py38torch19 python=3.8
 conda activate py38torch19
-git clone -recursive https://github.com/DaShi-Git/masterThesis.git
+git clone --recursive https://github.com/DaShi-Git/masterThesis.git
 cd masterThesis
 pip install -r environment.txt
 
