@@ -2,6 +2,7 @@ bindings.cpp
 kernel_loader.cpp
 matmul_cuda.cpp
 matmul_cuda_kernel.cu
+sample.cu
 setup.py
 sha1.cpp
 matmul_cuda.egg-info/PKG-INFO

@@ -46,6 +46,7 @@ setup(
     ext_modules=[
         CUDAExtension('matmul_cuda', [
             'bindings.cpp',
+            # 'sample.cu',
             #'matmul_cuda_kernel.cu',
             'kernel_loader.cpp',
             'sha1.cpp'

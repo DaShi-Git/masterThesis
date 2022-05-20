@@ -12,23 +12,28 @@ assert torch.cuda.is_available()
 cuda_device = torch.device("cuda")  # device object representing GPU
 activation = ["template <typename scalar_t>",
 "__device__ __forceinline__ scalar_t arbiacti(scalar_t z) {",
-"return z>0.0? z:8.0;//1.0 / (1.0 + exp(-z));",
+"return z>0.0? z*z:0.0;",
 "}"]
-#arbitActivation = ArbitActivation()
 writeActivation(activation, truncate=True)
 batch_size = 16
 input_features = 32
 state_size = 128
-
+HIDDEN_CHANNELS = 16
 # Note the device=cuda_device arguments here
-X = torch.randn(5,4, device=cuda_device)
-#X = torch.Tensor([3,4])
-h = torch.randn(4,4, device=cuda_device)
+# X = torch.randn(HIDDEN_CHANNELS*HIDDEN_CHANNELS,1, device=cuda_device)
+# X1 = torch.reshape(X, (HIDDEN_CHANNELS, HIDDEN_CHANNELS))
+# X1 = X1.transpose(0,1)
+# X1 = torch.reshape(X, (HIDDEN_CHANNELS*HIDDEN_CHANNELS,1))
+
+X = torch.randn(HIDDEN_CHANNELS, HIDDEN_CHANNELS, device=cuda_device)*1
+X = torch.round(X)
+h = torch.randn(HIDDEN_CHANNELS*HIDDEN_CHANNELS,1, device=cuda_device)
 C = torch.randn(4,4, device=cuda_device)
 matmul_cuda.cleanup
 output = matmul_cuda.evaluate(X, h, C)
 #print(output)
-print("hii")
+#X = X.half()
+#print("hii", X)
 #rnn = lltm.LLTM(input_features, state_size).to(cuda_device)
 # rnn = Matmul(4,4).to(cuda_device)
 
@@ -49,3 +54,10 @@ print("hii")
 #     print(output)
 
 # print('Forward: {:.3f} us | Backward {:.3f} us'.format(forward * 1e6/1e5, backward * 1e6/1e5))
+for i in range(HIDDEN_CHANNELS*HIDDEN_CHANNELS):
+    h[i][0] = 1.0
+#print(X.mul(h))
+X1 = torch.reshape(X, (HIDDEN_CHANNELS, HIDDEN_CHANNELS)).half()
+h = torch.reshape(h, (HIDDEN_CHANNELS, HIDDEN_CHANNELS)).half()
+# print("/n")
+# print(X.transpose(0,1).mul(h))
