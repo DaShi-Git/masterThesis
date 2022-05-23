@@ -79,9 +79,9 @@
 
 // GEMM configuration.
 
-#define M_TILES 2
-#define N_TILES 4
-#define K_TILES 4
+#define M_TILES 1
+#define N_TILES 1
+#define K_TILES 1
 
 #define M_GLOBAL (M * M_TILES)
 #define N_GLOBAL (N * N_TILES)
@@ -175,8 +175,8 @@
 // Matrix on device
 __shared__	half a[M_GLOBAL * K_GLOBAL];
 __shared__	half b[K_GLOBAL * N_GLOBAL];
-__shared__	float c[M_GLOBAL * N_GLOBAL];
-__shared__	float d[M_GLOBAL * N_GLOBAL];
+__shared__	half c[M_GLOBAL * N_GLOBAL];
+__shared__	half d[M_GLOBAL * N_GLOBAL];
 
 //__device__ void init_host_matrices(half a, half b, float c) {
 //}
@@ -221,6 +221,7 @@ for (int t = 0; t < M_GLOBAL * N_GLOBAL; t++) {
   c[t] = 0.0f;
 }
 }}
+__syncthreads();
   // Tile using a 2D grid
   int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / warpSize;
   int warpN = (blockIdx.y * blockDim.y + threadIdx.y);
@@ -230,10 +231,10 @@ for (int t = 0; t < M_GLOBAL * N_GLOBAL; t++) {
       a_frag;
   wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major>
       b_frag;
-  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> acc_frag;
-  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> c_frag;
+  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> acc_frag;
+  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> c_frag;
 
-  wmma::fill_fragment(acc_frag, 0.0f);
+  wmma::fill_fragment(acc_frag, __float2half(0.0f));
 
   // Loop over k
   for (int i = 0; i < k_ld; i += WMMA_K) {
@@ -263,7 +264,7 @@ for (int t = 0; t < M_GLOBAL * N_GLOBAL; t++) {
                            wmma::mem_row_major);
 
     for (int i = 0; i < c_frag.num_elements; i++) {
-      c_frag.x[i] = alpha * acc_frag.x[i] + beta * c_frag.x[i];
+      c_frag.x[i] = acc_frag.x[i] + c_frag.x[i];
     }
     if (warpM==0&&warpN==0){
       //printf("get here, %f", acc_frag.x[7]);
@@ -282,13 +283,15 @@ for (int t = 0; t < M_GLOBAL * N_GLOBAL; t++) {
       //   printf("2");
       // };
       // printf("evaluta arbiacti, %f", arbiacti(-0.8));
-      for (int i = 0; i < 64; ++i){
+      for (int i = 0; i < 256; ++i){
         //sWeightsHidden[i] = __float2half(d[i]);
-        printf("d[%d], %.3f ", i, d[i]);
-      //printf("a[%d], %.3f ", i, __half2float(b[i]));
         if (i % 16  == 0){ printf("\n");}
+        printf("d[%d], %.3f ", i, __half2float(d[i]));
+      //printf("a[%d], %.3f ", i, __half2float(b[i]));
+        
       }
     }
+    __syncthreads();
 }
 
 

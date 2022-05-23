@@ -45,8 +45,8 @@
 // GEMM configuration.
 
 #define M_TILES 2
-#define N_TILES 4
-#define K_TILES 4
+#define N_TILES 2
+#define K_TILES 2
 
 int M_GLOBAL = (M * M_TILES);
 int N_GLOBAL = (N * N_TILES);

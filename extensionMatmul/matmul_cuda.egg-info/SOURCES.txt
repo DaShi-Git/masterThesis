@@ -1,3 +1,4 @@
+binding_static_MLP.cpp
 bindings.cpp
 kernel_loader.cpp
 matmul_cuda.cpp
