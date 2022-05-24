@@ -42,3 +42,7 @@ A new package called `matmul-cuda` will be installed to the conda environment.
 从~/projects/masterThesis 上传一版，实现了matmul，MNK系数如果太大，比如大于6？就会提醒共享内存不足uses too much shared data (0x30000 bytes, 0xc000 max)，要注意在cuh内定义abcd，在共享内存。printf要特别注意数据类型，否则显示错误。
 ~/projects/tmp/masterThesis/extensionMatmul这一版没有上传，有a_frag[][]， 输出结果和python运算不一样，需要再看一下printf是否数据格式正确。是可运行状态
 
+25.05
+
+从~/projects/tmp2/masterThesis 上传一版，实现了flexible MLP， static MLP。目前都在一个block里面计算，需要看看如何用多个block， Seba说block之间不需要通信。放弃a_frag[]形式，因为需要用static define，还需 验证。__share memory定义时也需要static，所以只在kernel最开始定义了，后面复用，适用最大情况。
+
