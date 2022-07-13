@@ -6,6 +6,7 @@
 
 //#include <vector>
 #include"arbitaryActivation.cuh"
+#include"arbitaryHiddenChannels.cuh"
 #include"hiddenStructure.cuh"
 
 #include "renderer_commons.cuh"
@@ -19,10 +20,10 @@
 //#include <stdio.h>
 //#include "stdlib.h"
 // namespace {
-// template <typename scalar_t>
-// __device__ __forceinline__ scalar_t arbiacti(scalar_t z) {
-//   return z>0.5? z:0.5;//1.0 / (1.0 + exp(-z));
-// }
+template <typename scalar_t>
+__device__ __forceinline__ scalar_t sine_act(scalar_t z) {
+  return hsin(z);//1.0 / (1.0 + exp(-z));
+}
  // namespace  
  // namespace must be ending here, otherwise error by importing matmul_cuda, undefined matmul_cuda_backword
 
@@ -191,22 +192,59 @@
 	
 	// computing gemm using tensor core
 	//printf("[*] Computing D = A * B +C with Tensor Cores...\n");
+// const int hiddenChannels[4] = {2, 1, 2, 1};
+__device__ int getCurrentWeightIndex(int layer, int batchsize, int featuresize){
+  if (layer == 0){
+    return 0;
+  }
+  int output = 0;
+  int tmphiddenChannels[sizeof(hiddenChannels)+1];
+  tmphiddenChannels[0] = featuresize;
+  for (int i = 0; i < sizeof(hiddenChannels); i++){
+    tmphiddenChannels[i+1] = hiddenChannels[i];
+  }
+  for (int i = 0; i < layer; i++){
+    output = output + tmphiddenChannels[i]*tmphiddenChannels[i+1]*16*16;
+
+  }
+  return output;
+
+}
+
+// __device__	half d[32 * 32 *8];
+// __device__	half a[32 * 32 *8];
+// __device__	half c[32 * 32 *8];
 
 
 
 //__shared__ float sD[M_GLOBAL * N_GLOBAL*12];
 __global__ void EvaluateMLPFlexible(
-  half *a1, half *b1, float *c1, float *d1, int m_ld,
-                                 int n_ld, int k_ld, float alpha, float beta, kernel::Tensor1RW<real_t> hiddenStructure_notuse, int batchsize) {
+  kernel::Tensor2RW<real_t> weights, kernel::Tensor2RW<real_t> input, kernel::Tensor2RW<real_t> output, half *a1, half *b1, float *c1, float *d1, int m_ld,
+                                 int n_ld, int k_ld, float alpha, float beta, kernel::Tensor1RW<real_t> hiddenStructure_notuse, int batchsize, int featuresize) {
     using namespace nvcuda;
     // begin first layer
+    // const int M_TILES = hiddenChannels[0];
+    // const int N_TILES = batchsize;
+    // const int K_TILES =  featuresize;
     const int M_GLOBAL1 = (M * M_TILES);
     const int N_GLOBAL1 = (N * N_TILES);
     const int K_GLOBAL1 =  (K * K_TILES);
-    __shared__	half d[M_GLOBAL1 * N_GLOBAL1 *6]; // here need to be changed
-    __shared__	half a[M_GLOBAL1 * K_GLOBAL1*6];
-    __shared__	half b[K_GLOBAL1 * N_GLOBAL1*6];
-    __shared__	half c[M_GLOBAL1 * N_GLOBAL1*6];
+    //half d[32 * 32 *8];
+    // half a[32 * 32 *8];
+    // half c[32 * 32 *8];
+
+    // __device__	half d[32 * 32 *8];
+    // __device__	half a[32 * 32 *8];
+    // __device__	half c[32 * 32 *8];
+
+    __shared__	half d[M_GLOBAL1 * N_GLOBAL1 *8]; // here need to be changed
+    __shared__	half a[M_GLOBAL1 * K_GLOBAL1*8];
+    //__shared__	half b[K_GLOBAL1 * N_GLOBAL1*6];
+    __shared__	half c[M_GLOBAL1 * N_GLOBAL1*8];
+
+    const int warpID = threadIdx.x / 32;
+		const int lineID = threadIdx.x % 32;
+
     for (int hidden = 0; hidden < 1; ++hidden){
     // __shared__	half a[M_GLOBAL * K_GLOBAL];
     // __shared__	half b[K_GLOBAL * N_GLOBAL];
@@ -216,145 +254,66 @@ __global__ void EvaluateMLPFlexible(
   int lda = k_ld;
   int ldb = k_ld;
   int ldc = n_ld;
-  if (blockIdx.x == 0 && threadIdx.x == 0){
-for (int i = 0; i < M_GLOBAL1; i++) {
-  for (int j = 0; j < K_GLOBAL1; j++) {
-    a[i * K_GLOBAL1 + j] = __float2half(0.1f);
-  }
-}
-
-for (int i = 0; i < N_GLOBAL1; i++) {
-  for (int j = 0; j < K_GLOBAL1; j++) {
-    b[i * K_GLOBAL1 + j] = __float2half(1.0f);
-  }
-
-for (int t = 0; t < M_GLOBAL1 * N_GLOBAL1; t++) {
-  c[t] = 0.0f;
-}
-}}
-__syncthreads();
-  // Tile using a 2D grid
-  int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / warpSize;
-  int warpN = (blockIdx.y * blockDim.y + threadIdx.y);
-
-  // Declare the fragments
-  wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major>
-      a_frag;
-  wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major>
-      b_frag;
-  //wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> acc_frag;
-  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> c_frag;
-
-  //wmma::fill_fragment(acc_frag, __float2half(0.0f));
-
-  //load c
-  int cCol = warpN * WMMA_N;
-  int cRow = warpM * WMMA_M;
-
-  if (cRow < m_ld && cCol < n_ld) {
-    wmma::load_matrix_sync(c_frag, c + cCol + cRow * ldc, ldc,
-                           wmma::mem_row_major);
-  }
-
-  // Loop over k
-  for (int i = 0; i < k_ld; i += WMMA_K) {
-    int aCol = i;
-    int aRow = warpM * WMMA_M;
-    int bCol = warpN * N;
-    int bRow = i;
-
-    // Bounds checking
-    if (aRow < m_ld && aCol < k_ld && bRow < k_ld && bCol < n_ld) {
-      // Load the inputs
-      wmma::load_matrix_sync(a_frag, a + aCol + aRow * lda, lda);
-      wmma::load_matrix_sync(b_frag, b + bRow + bCol * ldb, ldb);
-
-      // Perform the matrix multiplication
-      wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
-    }
-  }
-
-  if (cRow < m_ld && cCol < n_ld) {
-    
-    wmma::store_matrix_sync(d + cCol + cRow * ldc, c_frag, ldc,
-                            wmma::mem_col_major);
-  }
-  
-  // if (warpM==0&&warpN==0 && threadIdx.x == 0){ // && threadIdx.x == 0){
-  //     //printf("threadIdx.x, %d ", threadIdx.x);
-  //     for (int i = 0; i < 256; ++i){
-  //       //sWeightsHidden[i] = __float2half(d[i]);
-  //       if (i % 16  == 0){ printf("\n");}
-  //       //printf("d[%d], %.3f ", i, __half2float(d[i]));
-        
-  //     //printf("a[%d], %.3f ", i, __half2float(b[i]));
-        
-  //     }
-  //   }
-    __syncthreads();
- }
-    // end first layer
-
-
-//__syncwarp();
-    // begin hidden layers
-    //std::vector<int> hiddenStructure(3) = {{2, 2}, {3, 2}, {4, 2}};
-    const int test1[4] = {2, 1, 2, 1};
-    const int hiddenLayers = 4;
-     __syncthreads();
-    //const int M_GLOBALtest = 32;
-  for (int hidden = 0; hidden < hiddenLayers; ++hidden){
-    const int M_tile  = test1[hidden+1];
-    const int K_tile  = test1[hidden];
-    int M_GLOBAL = (M * M_tile);
-    int N_GLOBAL = (N * batchsize);
-    int K_GLOBAL =  (K * K_tile);
-    // const int M_GLOBAL = 32;
-    // const int N_GLOBAL = 32;
-    // const int K_GLOBAL =  32;
-    // __shared__	half a[M_GLOBAL * K_GLOBAL];
-    // //__shared__	half b[K_GLOBAL * N_GLOBAL];
-    // __shared__	half c[M_GLOBAL * N_GLOBAL];
-    // __shared__	half d[M_GLOBAL * N_GLOBAL];
-  // Leading dimensions. Packed with no transpositions.
-  int m_ld = M_GLOBAL;
-  int n_ld = N_GLOBAL;
-  int k_ld = K_GLOBAL;
-  int lda = k_ld;
-  int ldb = k_ld;
-  int ldc = n_ld;
-  
-//   if (blockIdx.x == 0 && threadIdx.x == 0){
-// for (int i = 0; i < M_GLOBAL; i++) {
-//   for (int j = 0; j < K_GLOBAL; j++) {
-//     a[i * K_GLOBAL + j] = __float2half(0.1f);
+ // if (blockIdx.x == 0 && threadIdx.x == 0){
+// for (int i = 0; i < M_GLOBAL1; i++) {
+//   for (int j = 0; j < K_GLOBAL1; j++) {
+//     a[i * K_GLOBAL1 + j] = __float2half(0.1f);
 //   }
 // }
 
-// for (int i = 0; i < N_GLOBAL; i++) {
-//   for (int j = 0; j < K_GLOBAL; j++) {
-//     //b[i * K_GLOBAL + j] = __float2half(1.0f);
-    
+// for (int i = 0; i < N_GLOBAL1; i++) {
+//   for (int j = 0; j < K_GLOBAL1; j++) {
+//     b[i * K_GLOBAL1 + j] = __float2half(1.0f);
 //   }
 
-// for (int t = 0; t < M_GLOBAL * N_GLOBAL; t++) {
+// for (int t = 0; t < M_GLOBAL1 * N_GLOBAL1; t++) {
 //   c[t] = 0.0f;
 // }
-// }}
-  // Tile using a 2D grid
-  int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / warpSize;
-  int warpN = (blockIdx.y * blockDim.y + threadIdx.y);
-  // if (warpM==0&&warpN==0 && threadIdx.x == 0){
-      
-  //     for (int i = 0; i < 256; ++i){
-  //       //sWeightsHidden[i] = __float2half(d[i]);
-  //       if (i % 16  == 0){ printf("\n");}
-  //       printf("d[%d], %.3f ", i, __half2float(d[i]));
-  //     //printf("a[%d], %.3f ", i, __half2float(b[i]));
-        
-  //     }
-  //   }
+// }
+ int numloop_a = (M_GLOBAL1*K_GLOBAL1) / BLOCK_SIZE;
+ if (((M_GLOBAL1*K_GLOBAL1) % BLOCK_SIZE)>0){
+   numloop_a = numloop_a + 1;
+ }
+  for (int i = 0; i < numloop_a; i++){
+    a[i * BLOCK_SIZE + threadIdx.x] = __float2half(weights[i * BLOCK_SIZE + threadIdx.x][0]);
+
+  }
+
+
+
+  int numloop_d = (N_GLOBAL1*K_GLOBAL1) / BLOCK_SIZE;
+ if (((N_GLOBAL1*K_GLOBAL1) % BLOCK_SIZE)>0){
+   numloop_d = numloop_d + 1;
+ }
+  for (int i = 0; i < numloop_d; i++){
+    d[i * BLOCK_SIZE + threadIdx.x] = __float2half(input[i * BLOCK_SIZE + threadIdx.x][0]);
+
+  }
+
+// for (int i = 0; i < M_GLOBAL1; i++) {
+//   for (int j = 0; j < K_GLOBAL1; j++) {
+//     a[i * K_GLOBAL1 + j] = __float2half(weights[i * K_GLOBAL1 + j][0]);
+//   }
+// }
+
+// for (int i = 0; i < N_GLOBAL1; i++) {
+//   for (int j = 0; j < K_GLOBAL1; j++) {
+//     d[i * K_GLOBAL1 + j] = __float2half(input[i * K_GLOBAL1 + j][0]);
+//   }
+
+// for (int t = 0; t < M_GLOBAL1 * N_GLOBAL1; t++) {
+//   c[t] = 0.0f;
+// }
+// }
+
+// }
 __syncthreads();
+// Tile using a 2D grid
+  // int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / warpSize;
+  // int warpN = (blockIdx.y * blockDim.y + threadIdx.y);
+  int warpM = warpID / MAX_N;
+  int warpN = warpID % MAX_N;
+
   // Declare the fragments
   wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major>
       a_frag;
@@ -394,38 +353,227 @@ __syncthreads();
 
   if (cRow < m_ld && cCol < n_ld) {
     
-    wmma::store_matrix_sync(d + cCol + cRow * ldc, c_frag, ldc,
+    wmma::store_matrix_sync(d + cRow + cCol * ldc, c_frag, ldc,
                             wmma::mem_col_major);
   }
   
-//   if (warpM==0&&warpN==0 && threadIdx.x == 0){
+  // if (warpM==0&&warpN==0 && threadIdx.x == 0){
       
-//       for (int i = 0; i < M_GLOBAL * N_GLOBAL; ++i){
+  //     for (int i = 0; i < 16*16*2*2; ++i){
+  //       //sWeightsHidden[i] = __float2half(d[i]);
+  //       if (i % 32  == 0){ printf("\n");}
+  //       if (i % 32  == 0){ printf("\n");}
+  //       printf("d[%d], %.3f ", i, __half2float(d[i]));
+  //       //printf("a[%d], %.3f ", i, __half2float(a[i]));
+
+  //       // printf("input[%d], %f", i, __half2float(b[i]));
+  //       // int out = (int)hiddenStructure[0];
+  //       //printf("test1[3], %d", test1[0]);
+  //     //printf("a[%d], %.3f ", i, __half2float(b[i]));
+        
+  //     }
+  //   }
+  //   __syncthreads();
+ }
+    // end first layer
+
+
+//__syncwarp();
+    // begin hidden layers
+    //std::vector<int> hiddenStructure(3) = {{2, 2}, {3, 2}, {4, 2}};
+    //const int test1[4] = {2, 1, 2, 1};
+    //int test1[4];
+    // for(int i = 0; i<3; ++i){
+    //   //test1[i] = hiddenStructure_notuse[i];
+    //   //printf("hiddenstructure[i], %f ", c1[0]);
+    //   printf("batchsize, %d", batchsize);
+    // }
+    const int hiddenLayers = sizeof(hiddenChannels)/sizeof(hiddenChannels[0]);
+     //__syncthreads();
+    //const int M_GLOBALtest = 32;
+  for (int hidden = 0; hidden < hiddenLayers; ++hidden){
+    const int M_tile  = hiddenChannels[hidden+1];
+    const int K_tile  = hiddenChannels[hidden];
+    int M_GLOBAL = (M * M_tile);
+    int N_GLOBAL = (N * batchsize);
+    int K_GLOBAL =  (K * K_tile);
+    // const int M_GLOBAL = 32;
+    // const int N_GLOBAL = 32;
+    // const int K_GLOBAL =  32;
+    // __shared__	half a[M_GLOBAL * K_GLOBAL];
+    // //__shared__	half b[K_GLOBAL * N_GLOBAL];
+    // __shared__	half c[M_GLOBAL * N_GLOBAL];
+    // __shared__	half d[M_GLOBAL * N_GLOBAL];
+  // Leading dimensions. Packed with no transpositions.
+  int m_ld = M_GLOBAL;
+  int n_ld = N_GLOBAL;
+  int k_ld = K_GLOBAL;
+  int lda = k_ld;
+  int ldb = k_ld;
+  int ldc = n_ld;
+  int currentWeightIndex = getCurrentWeightIndex(hidden+1, batchsize, featuresize);
+//   if (blockIdx.x == 0 && threadIdx.x == 0){
+//     //printf("hiddenlayer, %d", hiddenLayers);
+    
+
+// for (int i = 0; i < M_GLOBAL; i++) {
+//   for (int j = 0; j < K_GLOBAL; j++) {
+//     //a[i * K_GLOBAL + j] = __float2half(1.0f);
+//     a[i * K_GLOBAL + j] = __float2half(weights[currentWeightIndex+i * K_GLOBAL + j][0]);
+//   }
+// }
+
+// // for (int t = 0; t < M_GLOBAL * N_GLOBAL; t++) {
+// //   c[t] = 0.0f;
+// // }
+// }
+// __syncthreads();
+ // Tile using a 2D grid
+  int warpM = warpID / MAX_N;
+  int warpN = warpID % MAX_N;
+// if (warpM < 5 && warpN < 5){
+//   int numloop = 2;
+//   for (int i = 0; i < numloop; i++){
+//     a[i * 512 + threadIdx.y  * 128 + threadIdx.x] = __float2half(weights[currentWeightIndex+i * 512 + threadIdx.y  * 128 + threadIdx.x][0]);
+
+//   }
+// }
+int numloop_a = (M_GLOBAL*K_GLOBAL) / BLOCK_SIZE;
+ if (((M_GLOBAL*K_GLOBAL) % BLOCK_SIZE)>0){
+   numloop_a = numloop_a + 1;
+ }
+  for (int i = 0; i < numloop_a; i++){
+    if (i * BLOCK_SIZE + threadIdx.x < sizeof(a) / sizeof(half)){ 
+    a[i * BLOCK_SIZE + threadIdx.x] = __float2half(weights[currentWeightIndex+i * BLOCK_SIZE + threadIdx.x][0]);
+    }
+
+  }
+
+__syncthreads();
+ 
+  // if (warpM==0&&warpN==0 && threadIdx.x == 0){
+      
+  //     for (int i = 0; i < 256; ++i){
+  //       //sWeightsHidden[i] = __float2half(d[i]);
+  //       if (i % 16  == 0){ printf("\n");}
+  //       printf("d[%d], %.3f ", i, __half2float(d[i]));
+  //     //printf("a[%d], %.3f ", i, __half2float(b[i]));
+        
+  //     }
+  //   }
+//__syncthreads();
+  // Declare the fragments
+  wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major>
+      a_frag;
+  wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major>
+      b_frag;
+  //wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> acc_frag;
+  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> c_frag;
+
+  //wmma::fill_fragment(acc_frag, __float2half(0.0f));
+
+  //load c
+  int cCol = warpN * WMMA_N;
+  int cRow = warpM * WMMA_M;
+
+  if (cRow < m_ld && cCol < n_ld) {
+    wmma::load_matrix_sync(c_frag, c + cCol + cRow * ldc, ldc,
+                           wmma::mem_row_major);
+  }
+
+  // Loop over k
+  for (int i = 0; i < k_ld; i += WMMA_K) {
+    int aCol = i;
+    int aRow = warpM * WMMA_M;
+    int bCol = warpN * N;
+    int bRow = i;
+
+    // Bounds checking
+    if (aRow < m_ld && aCol < k_ld && bRow < k_ld && bCol < n_ld) {
+      // Load the inputs
+      wmma::load_matrix_sync(a_frag, a + aCol + aRow * lda, lda);
+      wmma::load_matrix_sync(b_frag, d + bRow + bCol * ldb, ldb);
+
+      // Perform the matrix multiplication
+      wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
+    }
+  }
+
+  if (cRow < m_ld && cCol < n_ld) {
+    
+    wmma::store_matrix_sync(d + cRow + cCol * m_ld, c_frag, m_ld,
+                            wmma::mem_col_major);
+  }
+
+// // activation
+// int num_loop_act = m_ld*n_ld / 512;
+// if (warpM < 5 && warpN < 5){
+//   for (int i = 0; i < num_loop_act; i++){
+//     d[i * 512 + threadIdx.y  * 128 + threadIdx.x] = sine_act(d[i * 512 + threadIdx.y  * 128 + threadIdx.x]);
+
+//   }
+// }
+  
+// if (warpM==0&&warpN==0 && threadIdx.x == 0){
+      
+//       for (int i = 0; i < 16*16*batchsize*3; ++i){
 //         //sWeightsHidden[i] = __float2half(d[i]);
-//         if (i % 16  == 0){ printf("\n");}
-//         printf("d[%d], %.3f ", i, __half2float(d[i]));
+//         // if (i % 32  == 0){ printf("\n");}
+//         // if (i % 32  == 0){ printf("\n");}
+//         //printf("d[%d], %.3f ", i, __half2float(d[i]));
+//         //printf("a[%d], %.3f ", i, __half2float(a[i]));
+
+//         // printf("input[%d], %f", i, __half2float(b[i]));
+//         // int out = (int)hiddenStructure[0];
+//         //printf("test1[3], %d", test1[0]);
 //       //printf("a[%d], %.3f ", i, __half2float(b[i]));
         
 //       }
+//     // for (int i = 0; i < 16*16*1*3; ++i){
+//     //     //sWeightsHidden[i] = __float2half(d[i]);
+//     //     if (i % 32  == 0){ printf("\n");}
+//     //     if (i % 32  == 0){ printf("\n");}
+//     //     //printf("d[%d], %.3f ", i, __half2float(d[i]));
+//     //     //printf("a[%d], %.3f ", i, __half2float(a[i]));
+
+//     //     printf("a[%d], %f", i, __half2float(a[i]));
+//     //     // int out = (int)hiddenStructure[0];
+//     //     //printf("test1[3], %d", test1[0]);
+//     //   //printf("a[%d], %.3f ", i, __half2float(b[i]));
+        
+//     //   }
+//     printf("currenindex, %d", currentWeightIndex);
 //     }
-// __syncthreads();
+    __syncthreads();
 
   }
   
-  // __syncwarp();
+  __syncwarp();
     //end hidden layers
-    int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / warpSize;
-  int warpN = (blockIdx.y * blockDim.y + threadIdx.y);
+    int warpM = warpID / MAX_N;
+  int warpN = warpID % MAX_N;
   // __syncthreads();
     if (warpM==0&&warpN==0 && threadIdx.x == 0){
+      printf("arbiact %f", sine_act(2.0));
+      printf("sizeofa %d", sizeof(half));
+      for (int i = 0; i < output.size(0); i++) {
+        for (int j = 0; j < output.size(1); j++) {
+          output[i][j] = __half2float(d[i+j*output.size(0)]);
+        }
+      }
       
       for (int i = 0; i < 16*16*3*2; ++i){
         //sWeightsHidden[i] = __float2half(d[i]);
-        if (i % 16  == 0){ printf("\n");}
-        printf("d[%d], %.3f ", i, __half2float(d[i]));
+        // if (i % 32  == 0){ printf("\n");}
+        // if (i % 32  == 0){ printf("\n");}
+        //printf("d[%d], %.3f ", i, __half2float(d[i]));
+        //printf("a[%d], %.3f ", i, __half2float(a[i]));
+
+        // printf("input[%d], %f", i, __half2float(b[i]));
         // int out = (int)hiddenStructure[0];
         //printf("test1[3], %d", test1[0]);
       //printf("a[%d], %.3f ", i, __half2float(b[i]));
+      
         
       }
     }

@@ -202,7 +202,7 @@ namespace py = pybind11;
 //   return matmul_cuda_forward(input, weights, bias);
 // }
 
-__host__ void init_host_matrices(half *a, half *b, float *c) {
+__host__ void init_host_matrices(half *a, half *b, half *c) {
   for (int i = 0; i < M_GLOBAL; i++) {
     for (int j = 0; j < K_GLOBAL; j++) {
       a[i * K_GLOBAL + j] = __float2half(1.0f);
@@ -216,7 +216,7 @@ __host__ void init_host_matrices(half *a, half *b, float *c) {
   }
 
   for (int t = 0; t < M_GLOBAL * N_GLOBAL; t++) {
-    c[t] = 0.0f;
+    c[t] = __float2half(0.0f);
   }
 }
 
@@ -242,9 +242,16 @@ __host__ void matMultiplyOnHost(half *A, half *B, float *C, float alpha,
 
 
 torch::Tensor evaluate_flexible_MLP(
-	torch::Tensor& positions, const torch::Tensor& direction, const torch::Tensor& bias, const torch::Tensor& hiddenStructure, const int batchsize)
+	torch::Tensor& positions, const torch::Tensor& direction, const torch::Tensor& bias, 
+  //at::Half& positions, const at::Half& direction, const torch::Tensor& bias, 
+  const torch::Tensor& hiddenStructure, const int batchsize, const int featuresize, const int outputdim0, const int outputdim2, const std::list <std::string>& activation)
 {
   CUstream stream = c10::cuda::getCurrentCUDAStream();
+  //printf("111111111");
+  printf("below is the user defined activation function\n");
+  for (auto const &i: activation) {
+        std::cout << i << std::endl;
+    }
 	// CHECK_CUDA(positions, true);
 	// CHECK_DIM(positions, 2);
 	// CHECK_SIZE(positions, 1, 3);
@@ -291,9 +298,12 @@ torch::Tensor evaluate_flexible_MLP(
 	// if (const auto c = getConstantDeclarationName(s); !c.empty())
 	// 	constantNames.push_back(c);
 	std::stringstream extraSource;
-	// extraSource << "#define KERNEL_DOUBLE_PRECISION "
-	// 	<< (s.scalarType == GlobalSettings::kDouble ? 1 : 0)
-	// 	<< "\n";
+  for (auto const &i: activation) {
+        extraSource << i << "\n";
+    }
+	extraSource << "#define MAX_N 4"
+		//<< (s.scalarType == GlobalSettings::kDouble ? 1 : 0)
+		<< "\n";
 	// extraSource << "#define KERNEL_SYNCHRONIZED_TRACING "
 	// 	<< (s.synchronizedThreads ? 1 : 0)
 	// 	<< "\n";
@@ -320,7 +330,7 @@ torch::Tensor evaluate_flexible_MLP(
 	//output tensors
 	int batches = positions.size(0);
   int channels = positions.size(1);
-	auto densities = torch::empty({ batches, channels },
+	auto densities = torch::empty({ outputdim0, outputdim2},
 		at::TensorOptions().dtype(scalarType).device(c10::kCUDA));
 
 // printf("M: %d (%d x %d)\n", M_GLOBAL, M, M_TILES);
@@ -329,7 +339,7 @@ torch::Tensor evaluate_flexible_MLP(
 
   half *A_h = NULL;
   half *B_h = NULL;
-  float *C_h = NULL;
+  half *C_h = NULL;
 #if CPU_DEBUG
   float *result_hD = NULL;
   float *result_host = NULL;
@@ -337,7 +347,7 @@ torch::Tensor evaluate_flexible_MLP(
 
   A_h = (half *)malloc(sizeof(half) * M_GLOBAL * K_GLOBAL);
   B_h = (half *)malloc(sizeof(half) * K_GLOBAL * N_GLOBAL);
-  C_h = (float *)malloc(sizeof(float) * M_GLOBAL * N_GLOBAL);
+  C_h = (half *)malloc(sizeof(half) * M_GLOBAL * N_GLOBAL);
 #if CPU_DEBUG
   result_hD = (float *)malloc(sizeof(float) * M_GLOBAL * N_GLOBAL);
   result_host = (float *)malloc(sizeof(float) * M_GLOBAL * N_GLOBAL);
@@ -345,7 +355,7 @@ torch::Tensor evaluate_flexible_MLP(
 
   half *A = NULL;
   half *B = NULL;
-  float *C = NULL;
+  half *C = NULL;
   float *D = NULL;
 
 //   cudaMalloc(reinterpret_cast<void **>(&A),
@@ -358,7 +368,7 @@ torch::Tensor evaluate_flexible_MLP(
 //                              sizeof(float) * M_GLOBAL * N_GLOBAL);
 cudaMallocManaged((void **)&A, sizeof(half) * M_GLOBAL * K_GLOBAL);
 cudaMallocManaged((void **)&B, sizeof(half) * N_GLOBAL * K_GLOBAL);
-cudaMallocManaged((void **)&C, sizeof(float) * M_GLOBAL * N_GLOBAL);
+cudaMallocManaged((void **)&C, sizeof(half) * M_GLOBAL * N_GLOBAL);
 cudaMallocManaged((void **)&D, sizeof(float) * M_GLOBAL * N_GLOBAL);
 
 //   assert(((unsigned long long)A) % 128 == 0);
@@ -368,13 +378,13 @@ cudaMallocManaged((void **)&D, sizeof(float) * M_GLOBAL * N_GLOBAL);
 
   init_host_matrices(A_h, B_h, C_h);
 
-  printf("Preparing data for GPU...\n");
+  //printf("Preparing data for GPU...\n");
 
   cudaMemcpy(A, A_h, sizeof(half) * M_GLOBAL * K_GLOBAL,
                              cudaMemcpyHostToDevice);
   cudaMemcpy(B, B_h, sizeof(half) * N_GLOBAL * K_GLOBAL,
                              cudaMemcpyHostToDevice);
-  cudaMemcpy(C, C_h, sizeof(float) * M_GLOBAL * N_GLOBAL,
+  cudaMemcpy(C, C_h, sizeof(half) * M_GLOBAL * N_GLOBAL,
                              cudaMemcpyHostToDevice);
   cudaMemset(D, 0, sizeof(float) * M_GLOBAL * N_GLOBAL);
 
@@ -422,15 +432,24 @@ cudaMallocManaged((void **)&D, sizeof(float) * M_GLOBAL * N_GLOBAL);
 
     // blockDim.x must be a multple of warpSize
     // 128x4 means we have 16 warps and a block computes a 64x64 output tile
-    blockDim.x = 128;
-    blockDim.y = 4;
+    // blockDim.x = 128;
+    // blockDim.y = 4;
+    blockDim.x = 512;
+    blockDim.y = 1;
 
-    gridDim.x = (M_GLOBAL + (WMMA_M * blockDim.x / 32 - 1)) /
-                (WMMA_M * blockDim.x / 32);
-    gridDim.y = (N_GLOBAL + WMMA_N * blockDim.y - 1) / (WMMA_N * blockDim.y);
+    // gridDim.x = (M_GLOBAL + (WMMA_M * blockDim.x / 32 - 1)) /
+    //             (WMMA_M * blockDim.x / 32);
+    // gridDim.y = (N_GLOBAL + WMMA_N * blockDim.y - 1) / (WMMA_N * blockDim.y);
+    gridDim.x = 1;
+    gridDim.y = 1;
     printf("gridDim.x, %d, gridDim.y, %d", gridDim.x, gridDim.y);
+for(int i = 0; i<4; ++i){
+      //test1[i] = hiddenStructure_notuse[i];
+      //printf("hiddenstructure[i], %d ", int(hiddenStructure[i]));
+    }
 
-    printf("Computing... using simple_wmma_gemm kernel\n");
+
+    //printf("Computing... using simple_wmma_gemm kernel\n");
     // simple_wmma_gemm<<<gridDim, blockDim>>>(A, B, C, D, M_GLOBAL, N_GLOBAL,
     //                                         K_GLOBAL, alpha, beta);
 
@@ -453,13 +472,18 @@ cudaMallocManaged((void **)&D, sizeof(float) * M_GLOBAL * N_GLOBAL);
 	bool success = RENDERER_DISPATCH_FLOATING_TYPES(scalarType, "IVolumeInterpolation::evaluate", [&]()
 		{
       const auto accHiddenStructure = accessor< ::kernel::Tensor1Read<scalar_t>>(hiddenStructure);
-			const auto accPosition = accessor< ::kernel::Tensor2Read<scalar_t>>(positions);
-			const auto accDirection = hasDirection
-				? accessor< ::kernel::Tensor2Read<scalar_t>>(direction)
-				: ::kernel::Tensor2Read<scalar_t>();
+			//const auto accPosition = accessor< ::kernel::Tensor2Read<scalar_t>>(positions);
+      const auto accPosition = accessor< ::kernel::Tensor2RW<scalar_t>>(positions);
+      //const auto accPosition = positions;
+			// const auto accDirection = hasDirection
+			// 	? accessor< ::kernel::Tensor2Read<scalar_t>>(direction)
+			// 	: ::kernel::Tensor2Read<scalar_t>();
+      const auto accDirection = accessor< ::kernel::Tensor2Read<scalar_t>>(direction);
 			const auto accDensity = accessor< ::kernel::Tensor2RW<scalar_t>>(densities);
-			const void *args[] = {A, B, C, D, &M_GLOBAL, &N_GLOBAL,
-                                            &K_GLOBAL, &alpha, &beta, &accHiddenStructure, &batchsize};
+      // const auto accDirection = direction;
+			// const auto accDensity = densities;
+			const void *args[] = {&accPosition, &accDirection, &accDensity, A, B, C, D, &M_GLOBAL, &N_GLOBAL,
+                                            &K_GLOBAL, &alpha, &beta, &hiddenStructure, &batchsize, &featuresize};
 			auto result = cuLaunchKernel(
 				fun.fun(), gridDim.x, gridDim.y, 1, blockDim.x, blockDim.y, 1,
 				0, stream, const_cast<void**>(args), NULL);
@@ -522,7 +546,7 @@ cudaMallocManaged((void **)&D, sizeof(float) * M_GLOBAL * N_GLOBAL);
   cudaFree(reinterpret_cast<void *>(C));
   cudaFree(reinterpret_cast<void *>(D));
 	
-	return positions;
+	return densities;
 }
 
 // static void staticCudaSourcesLoaderRec(
