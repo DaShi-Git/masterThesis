@@ -7,6 +7,11 @@ In this project, an inference framework using Tensor Cores and Code Generation i
 - Supervisor: Weiss, Sebastian
 - Technical University of Munich
 # Project Structure
+Use `train_model.py` to get a PyTorch fully-connected moedel, and save the structure and parameters in repository `models`.
+
+An interface can load the model and feed it to the inference framework.
+
+
 
 # Environment
 Required environment:
