@@ -4,7 +4,7 @@ In this project, an inference framework using Tensor Cores and Code Generation i
 # Thesis Information
 - Title:  `Automatic Code Generation for Kernel Fusion`
 - Authors:  `Shi, Da`
-- Supervisor: `Sebastian Weiss`
+- Supervisor: `Weiss, Sebastian`
 - Technical University of Munich
 # Project Structure
 
@@ -47,14 +47,10 @@ Running the function `matmul_cuda.evaluate_flexible_MLP(*params)` and providing 
 
 ##进度
 
-20.05 
+## Evaluate the model
+Source Codes:
+```sh
+python evaluation_flexible_MLP5.py
 
-从~/projects/masterThesis 上传一版，实现了matmul，MNK系数如果太大，比如大于6？就会提醒共享内存不足uses too much shared data (0x30000 bytes, 0xc000 max)，要注意在cuh内定义abcd，在共享内存。printf要特别注意数据类型，否则显示错误。
-~/projects/tmp/masterThesis/extensionMatmul这一版没有上传，有a_frag[][]， 输出结果和python运算不一样，需要再看一下printf是否数据格式正确。是可运行状态
-
-25.05
-
-从~/projects/tmp2/masterThesis 上传一版，实现了flexible MLP， static MLP。目前都在一个block里面计算，需要看看如何用多个block， Seba说block之间不需要通信。放弃a_frag[]形式，因为需要用static define，还需 验证。__share memory定义时也需要static，所以只在kernel最开始定义了，后面复用，适用最大情况。
-
-23.08
-从~/projects/tmp2/masterThesis 上传一版，实现了灵活fc和多block推理。目前遇到的问题有load d和输出output时最后循环有一半的threads没有工作。用shuffle时总是有127个数字错误
+```
+It reports the kernel run time, correctness and the activition function designed by user.
