@@ -247,7 +247,7 @@ __host__ void matMultiplyOnHost(half *A, half *B, float *C, float alpha,
 
 
 torch::Tensor evaluate_flexible_MLP(
-	torch::Tensor& test, torch::Tensor& positions, const torch::Tensor& direction, const torch::Tensor& bias, 
+	torch::Tensor& test, torch::Tensor& weights, const torch::Tensor& input, const torch::Tensor& bias, 
   //at::Half& positions, const at::Half& direction, const torch::Tensor& bias, 
   const torch::Tensor& hiddenStructure, const int batchsize, const int featuresize, const int outputdim0, const int outputdim2, const std::list <std::string>& activation)
 {
@@ -350,7 +350,7 @@ cudaMemcpy(d_data, source, sourceSize, cudaMemcpyHostToDevice);
 // printf("hiddenstructure0, %d", _hiddenStructure[0]);
 // printf("hiddenstructure2, %d", _hiddenStructure[2]);
 	//GlobalSettings s{};
-	auto scalarType = positions.scalar_type();
+	auto scalarType = weights.scalar_type();
 	// s.volumeShouldProvideNormals = false;
 	// s.interpolationInObjectSpace = false;
 	// const auto oldBoxMax = boxMax();
@@ -402,9 +402,9 @@ cudaMemcpy(d_data, source, sourceSize, cudaMemcpyHostToDevice);
 	// }
 
 	//output tensors
-	int batches = positions.size(0);
-  int channels = positions.size(1);
-	auto densities = torch::empty({ outputdim0, outputdim2},
+	int batches = weights.size(0);
+  int channels = weights.size(1);
+	auto output = torch::empty({ outputdim0, outputdim2},
 		at::TensorOptions().dtype(scalarType).device(c10::kCUDA));
 
 // printf("M: %d (%d x %d)\n", M_GLOBAL, M, M_TILES);
@@ -575,24 +575,23 @@ for(int i = 0; i<4; ++i){
 		fun.minGridSize());
 	dim3 virtual_size{
 		static_cast<unsigned int>(batches), 1, 1 };
-	bool success = RENDERER_DISPATCH_FLOATING_TYPES(scalarType, "IVolumeInterpolation::evaluate", [&]()
+	bool success = RENDERER_DISPATCH_FLOATING_TYPES(scalarType, "evaluate", [&]()
 		{
       const auto accHiddenStructure = accessor< ::kernel::Tensor1Read<scalar_t>>(hiddenStructure);
 			//const auto accPosition = accessor< ::kernel::Tensor2Read<scalar_t>>(positions);
-      const auto accPosition = accessor< ::kernel::Tensor2RW<scalar_t>>(positions);
+      const auto accWeights = accessor< ::kernel::Tensor2RW<scalar_t>>(weights);
       //const auto accPosition = positions;
 			// const auto accDirection = hasDirection
 			// 	? accessor< ::kernel::Tensor2Read<scalar_t>>(direction)
 			// 	: ::kernel::Tensor2Read<scalar_t>();
-      const auto accDirection = accessor< ::kernel::Tensor2Read<scalar_t>>(direction);
+      const auto accInput = accessor< ::kernel::Tensor2Read<scalar_t>>(input);
       const auto accBias = accessor< ::kernel::Tensor2Read<scalar_t>>(bias);
-			const auto accDensity = accessor< ::kernel::Tensor2RW<scalar_t>>(densities);
+			const auto accOutput = accessor< ::kernel::Tensor2RW<scalar_t>>(output);
 
       const auto accTest = accessor< ::kernel::Tensor2Read<scalar_t>>(test);
       // const auto accDirection = direction;
 			// const auto accDensity = densities;
-			const void *args[] = {&texObj, &accTest, &accPosition, &accDirection, &accBias, &accDensity, &A, &B, &C, &D, &M_GLOBAL, &N_GLOBAL,
-                                            &K_GLOBAL, &alpha, &beta, &hiddenStructure, &batchsize, &featuresize};
+			const void *args[] = {&texObj, &accTest, &accWeights, &accInput, &accBias, &accOutput, &A, &B, &C, &D, &hiddenStructure, &batchsize, &featuresize};
 			auto result = cuLaunchKernel(
 				fun.fun(), gridDim.x, gridDim.y, 1, blockDim.x, blockDim.y, 1,
 				0, stream, const_cast<void**>(args), NULL);
@@ -729,7 +728,7 @@ stream_attribute.accessPolicyWindow.num_bytes = 0;                              
 cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);   // Overwrite the access policy attribute to a CUDA Stream
 cudaCtxResetPersistingL2Cache();                                                            // Remove any persistent lines in L2 
 
-	return densities;
+	return output;
 }
 
 // static void staticCudaSourcesLoaderRec(

@@ -235,15 +235,14 @@ __device__	half c[32 * 32 *10];
 
 //__shared__ float sD[M_GLOBAL * N_GLOBAL*12];
 __global__ void EvaluateMLPFlexible(
-  cudaTextureObject_t texObj, kernel::Tensor2Read<real_t> test, kernel::Tensor2RW<real_t> weights, kernel::Tensor2RW<real_t> input, kernel::Tensor2RW<real_t> bias, kernel::Tensor2RW<real_t> output, half *a1, half *b1, float *c1, float *d1, int m_ld,
-                                 int n_ld, int k_ld, float alpha, float beta, kernel::Tensor1RW<real_t> hiddenStructure_notuse, int batchsizeTotal, int featuresize) {
+  cudaTextureObject_t texObj, kernel::Tensor2Read<real_t> test, kernel::Tensor2RW<real_t> weights, kernel::Tensor2RW<real_t> input, kernel::Tensor2RW<real_t> bias, kernel::Tensor2RW<real_t> output, half *a1, half *b1, float *c1, float *d1, kernel::Tensor1RW<real_t> hiddenStructure_notuse, int batchsizeTotal, int featuresize) {
     using namespace nvcuda;
     
-    const int M_GLOBAL1 = (M * M_TILES);
-    const int N_GLOBAL1 = (N * N_TILES);
-    const int K_GLOBAL1 =  (K * K_TILES);
+    // const int M_GLOBAL1 = (M * M_TILES);
+    // const int N_GLOBAL1 = (N * N_TILES);
+    // const int K_GLOBAL1 =  (K * K_TILES);
 
-    const int offset = 0;
+    // const int offset = 0;
     
   
 __shared__	half d[32 * 16 * 8*6];
@@ -627,7 +626,7 @@ for(int i_output = 0; blockDim.x * i_output < batch_size*Cout16*16 * warpNum; ++
     //if(idx < batch_size*Cout16*16 * warpNum){
        //output[0][idx] = __half2float(d[idx]);
        //output[0][idx] = __half2float((half(8.0)));
-       printf("thread %d < %d \n", idx, batch_size*Cout16*16 * warpNum);
+       //printf("thread %d < %d \n", idx, batch_size*Cout16*16 * warpNum);
        //printf("idx %d", idx + loop * gridDim.x*Cout16*16*batch_size * warpNum + blockIdx.x*warpNum*Cout16*16*batch_size);
         output[0][idx + loop * gridDim.x*Cout16*16*batch_size * warpNum + blockIdx.x*warpNum*Cout16*16*batch_size] = __half2float(d[idx]);
         
