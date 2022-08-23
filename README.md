@@ -55,7 +55,7 @@ Running the function `matmul_cuda.evaluate_flexible_MLP(*params)` and providing 
 ## Evaluate the model
 Source Codes:
 ```sh
-python evaluation_flexible_MLP5.py
+python experiments/evaluation/evaluation_flexible_MLP5.py
 
 ```
 It reports the kernel run time, correctness and the activition function designed by user.
