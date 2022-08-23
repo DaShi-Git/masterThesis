@@ -1,7 +1,7 @@
 Master's Thesis: Automatic Code Generation for Kernel Fusion
 ===
 In this project, an inference framework using Tensor Cores and Code Generation is developed to show how kernel can be fused under the circumstance of a fully connected network with flexible hidden channels and arbitrary activation function. The fused kernel is not precompiled but code generated according to the PyTorch model provided by the user. Some experiments are done to analyze how GEMM patterns, memory usage and data flowing can affect the performance. 
-# Thesis Information
+<center># Thesis Information</center>
 - Title:  `Automatic Code Generation for Kernel Fusion`
 - Authors:  `Shi, Da`
 - Supervisor: `Weiss, Sebastian`
