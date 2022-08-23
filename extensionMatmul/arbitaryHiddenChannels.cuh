@@ -1,1 +1,1 @@
-const int hiddenChannels[3] = {2,2,2};
+const int hiddenChannels[4] = {2, 6, 4, 2};

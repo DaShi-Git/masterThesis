@@ -66,9 +66,10 @@ for i in range(hiddenlayer):
 # for i in range(32*32):
 #     h[i][0] = i*0.01
 C = torch.randn(4,4, device=cuda_device)
+test = torch.randn(4,4, device=cuda_device)
 matmul_cuda.cleanup
 # output = matmul_cuda.evaluate_static_MLP(X, h, C)
-output = matmul_cuda.evaluate_flexible_MLP(X, h, C, torch.Tensor([2, 1, 2, 1]), 2, 2, 32, 32, activation2)
+output = matmul_cuda.evaluate_flexible_MLP(C, X, h, C, torch.Tensor([2, 1, 2, 1]), 2, 2, 32, 32, activation2)
 #print(h)
 #X = X.half()
 #print("hii", X)
@@ -93,6 +94,6 @@ for i in range(32):
     for j in range(32):
         if (abs((output3-output)[i][j]) > 0.1):
             s=s+1
-        print(i*32+j, (output3-output)[i][j], output3[i][j], output[i][j])
+        #print(i*32+j, (output3-output)[i][j], output3[i][j], output[i][j])
         #print((output3-output).ceil()[i][j], i*32+j, output3[i][j], output[i][j])
 print("false number", s, torch.sin(torch.tensor(2.0)))
