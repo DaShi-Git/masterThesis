@@ -1,0 +1,16 @@
+{"ReLU":[
+    "template <typename scalar_t>", 
+    "__device__ scalar_t ReLU(scalar_t z) {", 
+    "return z>(half)0.0? z:(half)0.0;", 
+    "}"],
+"LeaklyReLU":[
+    "template <typename scalar_t>", 
+    "__device__ __forceinline__ scalar_t LeaklyReLU(scalar_t z) {", 
+    "return z>(half)0.0? z:(half)0.2*z;", 
+    "}"],
+"sin":[
+    "template <typename scalar_t>", 
+    "__device__ __forceinline__ scalar_t arbiacti1(scalar_t z) {", 
+    "return sinf(z);", 
+    "}"]
+}

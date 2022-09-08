@@ -15,6 +15,8 @@
 #include <cuda_fp16.h>
 #include <assert.h>
 
+//#include <c10/util/Half.h>
+
 
 
 #ifndef CPU_DEBUG
@@ -248,21 +250,33 @@ __host__ void matMultiplyOnHost(half *A, half *B, float *C, float alpha,
 
 torch::Tensor evaluate_flexible_MLP(
 	torch::Tensor& test, torch::Tensor& weights, const torch::Tensor& input, const torch::Tensor& bias, 
-  //at::Half& positions, const at::Half& direction, const torch::Tensor& bias, 
-  const torch::Tensor& hiddenStructure, const int batchsize, const int featuresize, const int outputdim0, const int outputdim2, const std::list <std::string>& activation)
+  const std::list <std::string>& hiddenStructure, const int batchsizeTotal, const int featuresize, const int outputdim0, const int outputdim2, const std::list <std::string>& activation)
 {
   CUstream stream = c10::cuda::getCurrentCUDAStream();
-  //printf("111111111， test tensor %f",test[0][0]);
   
-  //printf("111111111， test tensor %f",__half2float(test[0][0]));
 
-  printf("below is the user defined activation function\n");
-  for (auto const &i: activation) {
-        std::cout << i << std::endl;
-    }
+  // printf("below is the user defined activation function\n");
+  // for (auto const &i: activation) {
+  //       std::cout << i << std::endl;
+  //   }
 
-half testhalf = (half)0.0;
+half testhalf = (half)8.0;
 printf("test half value is %f", __half2float(testhalf));
+auto test_scalarType = test.scalar_type();
+auto test_data = test.data();
+// bool success_test = RENDERER_DISPATCH_FLOATING_TYPES(test_scalarType, "evaluateTest", [&]()
+// 		{
+//       //const auto accHiddenStructure = accessor< ::kernel::Tensor1Read<scalar_t>>(hiddenStructure);
+// 			const auto accTest = accessor< ::kernel::Tensor2Read<scalar_t>>(test);
+//       printf("test float value is %f", accTest[0][0]);
+// 			return true;
+// 		});
+//const auto accTest = accessor< ::kernel::Tensor2Read<at::Half>>(test);
+//printf("test float value is %f", __half2float(test[0][0]));
+//printf("test float value is %f", test_data[0][0]);
+
+
+
 // start texture memory
 const int height = 24;
     const int width = 24;
@@ -366,7 +380,13 @@ cudaMemcpy(d_data, source, sourceSize, cudaMemcpyHostToDevice);
 	// if (const auto c = getConstantDeclarationName(s); !c.empty())
 	// 	constantNames.push_back(c);
 	std::stringstream extraSource;
+  extraSource << "#include <cuda_fp16.h>"
+		//<< (s.scalarType == GlobalSettings::kDouble ? 1 : 0)
+		<< "\n";
   for (auto const &i: activation) {
+        extraSource << i << "\n";
+    }
+  for (auto const &i: hiddenStructure) {
         extraSource << i << "\n";
     }
 	extraSource << "#define MAX_N 4"
@@ -536,17 +556,14 @@ cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_at
     dim3 gridDim;
     dim3 blockDim;
 
-    // blockDim.x must be a multple of warpSize
-    // 128x4 means we have 16 warps and a block computes a 64x64 output tile
-    // blockDim.x = 128;
-    // blockDim.y = 4;
-    blockDim.x = 64;//96or256
+    
+    blockDim.x = 192;//96or192, by bs=16, 384
     blockDim.y = 1;
 
     // gridDim.x = (M_GLOBAL + (WMMA_M * blockDim.x / 32 - 1)) /
     //             (WMMA_M * blockDim.x / 32);
     // gridDim.y = (N_GLOBAL + WMMA_N * blockDim.y - 1) / (WMMA_N * blockDim.y);
-    gridDim.x = 3;
+    gridDim.x = 4;
     gridDim.y = 1;
     printf("gridDim.x, %d, gridDim.y, %d", gridDim.x, gridDim.y);
 for(int i = 0; i<4; ++i){
@@ -568,7 +585,7 @@ for(int i = 0; i<4; ++i){
 
 
 	// {
-		blockSize = 96;//96or256;   //fun.bestBlockSize();
+		//blockSize = 96;//96or256;   //fun.bestBlockSize();
 	// }
 	int minGridSize = std::min(
 		int(CUMAT_DIV_UP(batches, blockSize)),
@@ -577,7 +594,7 @@ for(int i = 0; i<4; ++i){
 		static_cast<unsigned int>(batches), 1, 1 };
 	bool success = RENDERER_DISPATCH_FLOATING_TYPES(scalarType, "evaluate", [&]()
 		{
-      const auto accHiddenStructure = accessor< ::kernel::Tensor1Read<scalar_t>>(hiddenStructure);
+      //const auto accHiddenStructure = accessor< ::kernel::Tensor1Read<scalar_t>>(hiddenStructure);
 			//const auto accPosition = accessor< ::kernel::Tensor2Read<scalar_t>>(positions);
       const auto accWeights = accessor< ::kernel::Tensor2RW<scalar_t>>(weights);
       //const auto accPosition = positions;
@@ -591,7 +608,7 @@ for(int i = 0; i<4; ++i){
       const auto accTest = accessor< ::kernel::Tensor2Read<scalar_t>>(test);
       // const auto accDirection = direction;
 			// const auto accDensity = densities;
-			const void *args[] = {&texObj, &accTest, &accWeights, &accInput, &accBias, &accOutput, &A, &B, &C, &D, &hiddenStructure, &batchsize, &featuresize};
+			const void *args[] = {&texObj, &test, &accWeights, &accInput, &accBias, &accOutput, &batchsizeTotal, &featuresize};
 			auto result = cuLaunchKernel(
 				fun.fun(), gridDim.x, gridDim.y, 1, blockDim.x, blockDim.y, 1,
 				0, stream, const_cast<void**>(args), NULL);

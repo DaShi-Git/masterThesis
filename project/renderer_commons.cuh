@@ -8,7 +8,7 @@
 
 #ifndef KERNEL_DOUBLE_PRECISION
 #define KERNEL_DOUBLE_PRECISION 0
-#pragma warning "KERNEL_DOUBLE_PRECISION not specified, fallback to floats"
+//#pragma warning "KERNEL_DOUBLE_PRECISION not specified, fallback to floats"
 #endif
 
 #ifndef KERNEL_SYNCHRONIZED_TRACING
