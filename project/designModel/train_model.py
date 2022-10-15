@@ -13,23 +13,36 @@ class ModelClass(nn.Module):
         # self.fc2 = nn.Linear(8*16-1, 8*16-1, bias=False)
         # self.fc3 = nn.Linear(8*16-1, 2*16, bias=False)
 
-        self.fc1 = nn.Linear(2*16, 8*16-1, bias=False)
-        self.fc2 = nn.Linear(8*16-1, 8*16-1, bias=False)
-        self.fc3 = nn.Linear(8*16-1, 6*16-1, bias=False)
-        self.fc4 = nn.Linear(6*16-1, 2*16, bias=False)
+        # self.fc1 = nn.Linear(8*16, 8*16, bias=True)
+        # self.fc2 = nn.Linear(8*16, 8*16-1, bias=True)
+        # self.fc3 = nn.Linear(8*16-1, 8*16-1, bias=True)
+        # self.fc4 = nn.Linear(8*16-1, 8*16, bias=True)
+        
+        # self.fc5 = nn.Linear(8*16, 8*16, bias=True)
+        # self.fc6 = nn.Linear(8*16, 8*16-1, bias=True)
+        # self.fc7 = nn.Linear(8*16-1, 8*16-1, bias=True)
+        # self.fc8 = nn.Linear(8*16-1, 8*16, bias=True)
+
+        self.network = nn.ModuleList()
+        for i in range(6*1):
+            self.network.append(nn.Linear(8*16, 8*16, bias=True))
         
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
+        # x = F.relu(self.fc1(x))
+        # x = F.relu(self.fc2(x))
+        # x = F.relu(self.fc3(x))
+        # x = F.relu(self.fc4(x))
 
-        # x = self.fc1(x)
-        # x = self.fc2(x)
-        # x = self.fc3(x)
+        # x = F.relu(self.fc5(x))
+        # x = F.relu(self.fc6(x))
+        # x = F.relu(self.fc7(x))
+        # x = F.relu(self.fc8(x))
 
-        #x = self.fc4(x)
+        for layer in self.network:
+            x = F.relu(layer(x))
+
+        
         return x
 
 

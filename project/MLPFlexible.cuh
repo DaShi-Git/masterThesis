@@ -1,6 +1,6 @@
 #pragma once
 
-// i saved this on 22.08, 这一版实现了flexble mm 多层， 在一个warp中, 保存用来对比32 batch size 和16 bs，这一版是32
+// i saved this on 22.08, 这一版实现了flexble mm 多层， 在一个warp中, 保存用来对比32 batch size 和16 bs，这一版是稳定16
 //#include <vector>
 // #include"arbitaryActivation.cuh"
 // #include"arbitaryHiddenChannels.cuh"
@@ -50,33 +50,44 @@ __device__ int getCurrentBiasIndex(int layer){
   return output;
 }
 
-// __device__	half d[32 * 32 *8];
-__device__	half a[128 * 128 *3];
-__device__	half c[128 * 2];
-//__device__	half d[32 * 16 * 8*3*2];
+// // __device__	half d[32 * 32 *8];
+ __device__	half a[128 * 128 *13];
+//__device__	half a[12288];
+__device__	half c[128 * 12];
+// //__device__	half d[32 * 16 * 8*3*2];
 
 
 __global__ void EvaluateMLPFlexible(
-  cudaTextureObject_t texObj, kernel::Tensor2RW<real_t> test, kernel::Tensor2RW<real_t> weights, kernel::Tensor2RW<real_t> input, kernel::Tensor2RW<real_t> bias, kernel::Tensor2RW<real_t> output, int batchsizeTotal, int featuresize) {
+  //cudaTextureObject_t texObj, 
+  kernel::Tensor2RW<real_t> test, kernel::Tensor2RW<real_t> weights, kernel::Tensor2RW<real_t> input, kernel::Tensor2RW<real_t> bias, kernel::Tensor2RW<real_t> output, int batchsizeTotal, int featuresize) {
     using namespace nvcuda;
       
-  
+// half a[128 * 128 *9];
+// //__device__	half a[12288];
+// half c[128 * 12];
+
 __shared__	half d[32 * 16 * 8*3*2];
+//__shared__	half d[12288];
+//__shared__	half a[12288];
 for(int i = threadIdx.x + blockDim.x*blockIdx.x; i < weights.size(1); i += blockDim.x*gridDim.x){
   a[i] = __float2half(weights[0][i]);
+}
+__syncthreads();
+for(int i = threadIdx.x + blockDim.x*blockIdx.x; i < bias.size(1); i += blockDim.x*gridDim.x){
+  c[i] = __float2half(bias[0][i]);
 }
 __syncthreads();
 
 
 const int warpID = threadIdx.x / 32;
 const int lineID = threadIdx.x % 32;
-int batch_size =  32; //batces in each warp
+int batch_size =  16; //batces in each warp
 // Fragments
 wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major>
       a_frag[8][8];
 wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major>
-      b_frag[8][2];
-wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> c_frag[8][2];
+      b_frag[8][1];
+wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> c_frag[8][1];
 
 //__syncthreads();
 /////////////////////////////////////
@@ -110,7 +121,7 @@ for(int i_d = 0; blockDim.x * i_d < Cin16*16*batch_size * warpNum; ++i_d){
 				for (int cin = 0; cin < Cin16; ++cin)
 				{
 					wmma::load_matrix_sync(b_frag[cin][0], warpID*Cin16*16*batch_size + d + 16 * cin, Cin16*16);
-					wmma::load_matrix_sync(b_frag[cin][1], warpID*Cin16*16*batch_size + d + 16 * cin + 16 * Cin16*16, Cin16*16);
+					//wmma::load_matrix_sync(b_frag[cin][1], warpID*Cin16*16*batch_size + d + 16 * cin + 16 * Cin16*16, Cin16*16);
 				}
 
 /////////////////////////////////////
@@ -124,25 +135,32 @@ Cin16 = hiddenChannels[hidden];
 Cout16 = hiddenChannels[hidden+1];
 
 
-  //load C to memory c(biass)
-int i_c = 0;
-#pragma unroll
-while(blockDim.x * i_c < Cout16*16){
+//   //load C to memory c(biass)
+// int i_c = 0;
+// #pragma unroll
+// while(blockDim.x * i_c < Cout16*16){
   
-    int idx = blockDim.x * i_c + threadIdx.x;
-    if(idx < Cout16*16){
-      // printf("get in %d",  idx);
-        c[idx] = __float2half(bias[0][idx+currentBiasIndex]);//
-    }
-    i_c += 1;
-   // __syncthreads();
-}
+//     int idx = blockDim.x * i_c + threadIdx.x;
+//     if(idx < Cout16*16){
+//       // printf("get in %d",  idx);
+//         c[idx] = __float2half(bias[0][idx+currentBiasIndex]);//
+//     }
+//     i_c += 1;
+//    // __syncthreads();
+// }
+//  //load C to fragment c_frag(bias)
+//  #pragma unroll
+//     for (int cout = 0; cout < Cout16; ++cout)
+//   {
+//     wmma::load_matrix_sync(c_frag[cout][0], c + 16 * cout, 0, wmma::mem_col_major);
+//     wmma::load_matrix_sync(c_frag[cout][1], c + 16 * cout, 0, wmma::mem_col_major);
+//   }
  //load C to fragment c_frag(bias)
  #pragma unroll
     for (int cout = 0; cout < Cout16; ++cout)
   {
-    wmma::load_matrix_sync(c_frag[cout][0], c + 16 * cout, 0, wmma::mem_col_major);
-    wmma::load_matrix_sync(c_frag[cout][1], c + 16 * cout, 0, wmma::mem_col_major);
+    wmma::load_matrix_sync(c_frag[cout][0], currentBiasIndex + c + 16 * cout, 0, wmma::mem_col_major);
+    //wmma::load_matrix_sync(c_frag[cout][1], currentBiasIndex + c + 16 * cout, 0, wmma::mem_col_major);
   }
 
 if (hidden>0){
@@ -152,7 +170,7 @@ if (hidden>0){
 				for (int cin = 0; cin < Cin16; ++cin)
 				{
 					wmma::load_matrix_sync(b_frag[cin][0], warpID*Cin16*16*batch_size + d + 16 * cin, Cin16*16);
-					wmma::load_matrix_sync(b_frag[cin][1], warpID*Cin16*16*batch_size + d + 16 * cin + 16 * Cin16*16, Cin16*16);
+					//wmma::load_matrix_sync(b_frag[cin][1], warpID*Cin16*16*batch_size + d + 16 * cin + 16 * Cin16*16, Cin16*16);
 				}
 // //set b_frag to 0
 				// for (int i = 0; i < Cin16; ++i) {
@@ -215,75 +233,75 @@ if (hidden>0){
 				// }
         
 //         // // //bellow are the new part
-//         if (lineID%8 < 4){
-//         for (int i = 0; i < Cout16; ++i){
-//           for (int t = 0; t < 4; t++){
-// 					for (int j = 0; j < 2; ++j)
-// 						//for (int t = 0; t < 4; t++)
-// 						{
-//               half tmp1 = c_frag[i][j].x[2*t];
-//               half tmp2 = c_frag[i][j].x[2*t+1];
-//               //if (lineID%8 < 4){
-//                 b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-//               //else{
-//                 //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-//               //if (lineID%8 < 4){
-//                 //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-//               //else{
-//                 //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-// 						}
-// 					}
-//           }}
-//           if (lineID%8 > 3){
-//         for (int i = 0; i < Cout16; ++i){
-//           for (int t = 0; t < 4; t++){
-// 					for (int j = 0; j < 2; ++j)
-// 						//for (int t = 0; t < 4; t++)
-// 						{
-//               half tmp1 = c_frag[i][j].x[2*t];
-//               half tmp2 = c_frag[i][j].x[2*t+1];
-//               //if (lineID%8 < 4){
-//                 //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-//               //else{
-//                 //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-//               //if (lineID%8 < 4){
-//                 //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-//               //else{
-//                 b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
-//                 //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
-//               //}
-// 						}
-// 					}
-//           }}
+// if (lineID%8 < 4){
+// for (int i = 0; i < Cout16; ++i){
+//   for (int t = 0; t < 4; t++){
+//   for (int j = 0; j < 2; ++j)
+//     //for (int t = 0; t < 4; t++)
+//     {
+//       half tmp1 = c_frag[i][j].x[2*t];
+//       half tmp2 = c_frag[i][j].x[2*t+1];
+//       //if (lineID%8 < 4){
+//         b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//       //else{
+//         //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//       //if (lineID%8 < 4){
+//         //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//       //else{
+//         //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//     }
+//   }
+//   }}
+//   if (lineID%8 > 3){
+// for (int i = 0; i < Cout16; ++i){
+//   for (int t = 0; t < 4; t++){
+//   for (int j = 0; j < 2; ++j)
+//     //for (int t = 0; t < 4; t++)
+//     {
+//       half tmp1 = c_frag[i][j].x[2*t];
+//       half tmp2 = c_frag[i][j].x[2*t+1];
+//       //if (lineID%8 < 4){
+//         //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//       //else{
+//         //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//       //if (lineID%8 < 4){
+//         //b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//       //else{
+//         b_frag[i][j].x[2*t] = __shfl_sync(0xffffffff, tmp1, warpID*32 + 8*(lineID%4) + lineID/8);
+//         //b_frag[i][j].x[2*t+1] = __shfl_sync(0xffffffff, tmp2, warpID*32 + 8*(lineID%4) + 4 + lineID/8);
+//       //}
+//     }
+//   }
+//   }}
 
 // // //copy part 3
-//         for (int i = 0; i < Cin16; ++i) {
-// 					for (int j = 0; j < 2; ++j) {
-// 						for (int t = 0; t < 8; t++)
-// 						{
-//               //half tmp = (half)1;//c_frag[i][j].x[t];
-//               // tmp = tmp + (half)5;
-// 							// c_frag[i][j].x[t] = tmp;
-//               b_frag[i][j].x[t+8] = b_frag[i][j].x[t];
-//               //printf("c.x[%d] is %.3f",t, __half2float(tmp));
-              
-// 						}
-// 					}
-// 				}
+// for (int i = 0; i < Cin16; ++i) {
+//   for (int j = 0; j < 2; ++j) {
+//     for (int t = 0; t < 8; t++)
+//     {
+//       //half tmp = (half)1;//c_frag[i][j].x[t];
+//       // tmp = tmp + (half)5;
+//       // c_frag[i][j].x[t] = tmp;
+//       b_frag[i][j].x[t+8] = b_frag[i][j].x[t];
+//       //printf("c.x[%d] is %.3f",t, __half2float(tmp));
+      
+//     }
+//   }
+// }
 
 
 }
@@ -347,7 +365,7 @@ if (hidden>0){
 #pragma unroll
 				for (int i = 0; i < Cout16; ++i) {
           #pragma unroll
-					for (int j = 0; j < 2; ++j) {
+					for (int j = 0; j < 1; ++j) {
            #pragma unroll
 						for (int k = 0; k < Cin16; ++k) {
 							wmma::mma_sync(c_frag[i][j], a_frag[i][k], b_frag[k][j], c_frag[i][j]);
@@ -358,7 +376,7 @@ if (hidden>0){
         
         //activations
 				for (int i = 0; i < Cout16; ++i) {
-					for (int j = 0; j < 2; ++j) {
+					for (int j = 0; j < 1; ++j) {
 						for (int t = 0; t < c_frag[0][0].num_elements; t++)
 						{
               
@@ -384,7 +402,7 @@ if (hidden>0){
 				for (int cout = 0; cout < Cout16; ++cout)
 				{
 					wmma::store_matrix_sync(intermediateResults + 16 * cout, c_frag[cout][0], Cout16*16, wmma::mem_col_major);
-					wmma::store_matrix_sync(intermediateResults + 16 * cout + 16 * Cout16*16, c_frag[cout][1], Cout16*16, wmma::mem_col_major);
+					//wmma::store_matrix_sync(intermediateResults + 16 * cout + 16 * Cout16*16, c_frag[cout][1], Cout16*16, wmma::mem_col_major);
 				}
 //         // //}//end if warpid = 1
 //
@@ -417,8 +435,8 @@ for(int i_output = 0; blockDim.x * i_output < batch_size*Cout16*16 * warpNum; ++
 } //end of loop grid
 // printf("thread %d", threadIdx.x);
 
-// if (warpID==0 && threadIdx.x == 0){
-//   printf("cout %d loop %d thread %d\n", Cout16, loop, threadIdx.x);
+// if (blockIdx.x == 0 && warpID==0 && threadIdx.x == 0){
+//   //printf("cout %d loop %d thread %d\n", Cout16, loop, threadIdx.x);
 //       for (int i = 0; i < output.size(0); i++) {
 //         for (int j = 0; j < output.size(1); j++) {
 //           //output[i][j] = __half2float(d[i+j*output.size(0)]);
@@ -426,15 +444,16 @@ for(int i_output = 0; blockDim.x * i_output < batch_size*Cout16*16 * warpNum; ++
 //         }
 //       }
 
-//       for (int i = 0; i < batch_size*8*16; ++i){
+//       for (int i = 0; i < 1*32; ++i){
 //         //output[0][i] = __half2float(d[i]);
 //         // sWeightsHidden[i] = __(d[i]);
 //         // if (i % 32  == 0){ printf("\n");}
 //         // if (i % 32  == 0){ printf("\n");}
 //         //printf("d[%d], %.3f ", i, __half2float(d[i]));
-//         //printf("a[%d], %.3f ", i, __half2float(a[i]));
+//         printf("a[%d], %f ", i, __half2float(a[i]));
 
-//         //printf("weight[%d], %f", i, weights[0][i]);
+//         //printf("bias[%d], %.3f", i, bias[0][i]);
+//         //printf("bias[%d], %d", i, bias.size(1));
 //       //   int out = (int)hiddenStructure[0];
 //       //printf("test1[0], %f", __half2float(test[0][0]));
 //       //printf("test1[0], %f", test[0][0]);

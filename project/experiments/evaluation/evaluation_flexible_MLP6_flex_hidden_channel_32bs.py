@@ -19,18 +19,18 @@ with open('activationLibrary.json', 'r') as json_file:
     activation1 = json.load(json_file)["ReLU"]
     #activation2 = json.load(json_file)["LeaklyReLU"]
 activation1 = activation1+["__device__ half (*activation[3])(half) = {ReLU, ReLU, ReLU};"]
-# hiddenlayer=2
-# hiddstring = "const int hiddenChannels["+str(hiddenlayer+1)+"] = {2"
-# for i in range(hiddenlayer):
-#     hiddstring = hiddstring+",2"
-# hiddstring = hiddstring+"};"
-hiddstring = "const int hiddenChannels[4] = {2, 8, 4, 2};"
+hiddenlayer=4
+hiddstring = "const int hiddenChannels["+str(hiddenlayer+1)+"] = {8"
+for i in range(hiddenlayer):
+    hiddstring = hiddstring+",8"
+hiddstring = hiddstring+"};"
+#hiddstring = "const int hiddenChannels[4] = {2, 8, 4, 2};"
 hiddenChannels = [hiddstring]
 #hiddenChannels = ["const int hiddenChannels[4] = {2, 8, 4, 2};","", "__device__ half (*activation[3])(half) = {ReLU, ReLU, ReLU};"]
-Cin = 2 #first layer
-Cout = 2 #last layer
+Cin = 8 #first layer
+Cout = 8 #last layer
 
-batchsizeTotal=192*5
+batchsizeTotal=192*1
 batch_size = 32
 
 
