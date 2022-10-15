@@ -14,58 +14,6 @@ import json
 assert torch.cuda.is_available()
 cuda_device = torch.device("cuda:0")  # device object representing GPU
 
-def get_model_param(model_structure):
-    with torch.no_grad():
-        model = model_structure()
-        for i, param_tensor in enumerate(model.state_dict()):
-            if i ==0 or i == 1: #注意这里！！
-                if model.state_dict()[param_tensor].dim() == 2:
-                    tmp_tensor = model.state_dict()[param_tensor]
-                    padWeights = nn.ZeroPad2d((0, (16-tmp_tensor.size(1)%16)%16, 0, (16-tmp_tensor.size(0)%16)%16))  #padding left, right, top, down
-                    tmp_tensor = padWeights(tmp_tensor)
-                    Xmodel = torch.reshape(tmp_tensor, (1, tmp_tensor.size(0)*tmp_tensor.size(1)))
-                else:
-                    tmp_bias = model.state_dict()[param_tensor]
-                    padBias = nn.ConstantPad1d((0, (16-tmp_bias.size(0)%16)%16), 0.0)
-                    tmp_bias = padBias(tmp_bias)
-                    Biasmodel = torch.reshape(tmp_bias, (1, tmp_bias.size(0)))
-                    #print(tmp_bias.size())
-            else:
-                if model.state_dict()[param_tensor].dim() == 2:
-                    tmp_tensor = model.state_dict()[param_tensor]
-                    padWeights = nn.ZeroPad2d((0, (16-tmp_tensor.size(1)%16)%16, 0, (16-tmp_tensor.size(0)%16)%16))  #padding left, right, top, down
-                    tmp_tensor = padWeights(tmp_tensor)
-                    tmp_tensor = torch.reshape(tmp_tensor, (1, tmp_tensor.size(0)*tmp_tensor.size(1)))
-                    Xmodel = torch.cat((Xmodel, tmp_tensor), 1)
-                    
-                else:
-                    tmp_bias = model.state_dict()[param_tensor]
-                    padBias = nn.ConstantPad1d((0, (16-tmp_bias.size(0)%16)%16), 0.0)
-                    tmp_bias = padBias(tmp_bias)
-                    tmp_bias = torch.reshape(tmp_bias, (1, tmp_bias.size(0)))
-                    Biasmodel = torch.cat((Biasmodel, tmp_bias), 1)
-                    #print(tmp_bias.size())
-
-        model.eval()
-        
-        model.to(cuda_device)
-        timestamp1 = time.time()
-        model.half()
-        
-        
-        tmpoutput = model(h)
-        timestamp2 = time.time()
-        outputgroundModel = tmpoutput.float().transpose(0, 1).cpu()
-        print("pytorch time half: ", (timestamp2-timestamp1)*1000)
-   
-        Xin = torch.empty_like(Xmodel, device=cuda_device, requires_grad=False)
-        for i in range(Xmodel.size(1)):
-            Xin[0][i] = Xmodel[0][i]
-
-        Biasin = torch.empty_like(Biasmodel, device=cuda_device, requires_grad=False)
-        for i in range(Biasmodel.size(1)):
-            Biasin[0][i] = Biasmodel[0][i]
-    return Xin, Biasin, outputgroundModel
 
 with open('activationLibrary.json', 'r') as json_file:
     activation1 = json.load(json_file)["ReLU"]
@@ -98,11 +46,67 @@ batchsizeAfterPadding = hInput.size(1)
 print("Input size", hInput.size(), h.size())
 hInput = torch.reshape(hInput.transpose(0, 1), (1, Cin*16*hInput.size(1)))
 
-# get model parameters
-Xin, Biasin, outputgroundModel = get_model_param(ModelClass)
 
+with torch.no_grad():
+    model = ModelClass()
+    for i, param_tensor in enumerate(model.state_dict()):
+        if i ==0 or i == 1: #注意这里！！
+            if model.state_dict()[param_tensor].dim() == 2:
+                tmp_tensor = model.state_dict()[param_tensor]
+                padWeights = nn.ZeroPad2d((0, (16-tmp_tensor.size(1)%16)%16, 0, (16-tmp_tensor.size(0)%16)%16))  #padding left, right, top, down
+                tmp_tensor = padWeights(tmp_tensor)
+                Xmodel = torch.reshape(tmp_tensor, (1, tmp_tensor.size(0)*tmp_tensor.size(1)))
+            else:
+                tmp_bias = model.state_dict()[param_tensor]
+                padBias = nn.ConstantPad1d((0, (16-tmp_bias.size(0)%16)%16), 0.0)
+                tmp_bias = padBias(tmp_bias)
+                Biasmodel = torch.reshape(tmp_bias, (1, tmp_bias.size(0)))
+                #print(tmp_bias.size())
+        else:
+            if model.state_dict()[param_tensor].dim() == 2:
+                tmp_tensor = model.state_dict()[param_tensor]
+                padWeights = nn.ZeroPad2d((0, (16-tmp_tensor.size(1)%16)%16, 0, (16-tmp_tensor.size(0)%16)%16))  #padding left, right, top, down
+                tmp_tensor = padWeights(tmp_tensor)
+                tmp_tensor = torch.reshape(tmp_tensor, (1, tmp_tensor.size(0)*tmp_tensor.size(1)))
+                Xmodel = torch.cat((Xmodel, tmp_tensor), 1)
+                
+            else:
+                tmp_bias = model.state_dict()[param_tensor]
+                padBias = nn.ConstantPad1d((0, (16-tmp_bias.size(0)%16)%16), 0.0)
+                tmp_bias = padBias(tmp_bias)
+                tmp_bias = torch.reshape(tmp_bias, (1, tmp_bias.size(0)))
+                Biasmodel = torch.cat((Biasmodel, tmp_bias), 1)
+                #print(tmp_bias.size())
+
+    model.eval()
+    
+    model.to(cuda_device)
+    timestamp1 = time.time()
+    model.half()
+    
+    
+    tmpoutput = model(h)
+    timestamp2 = time.time()
+    outputgroundModel = tmpoutput.float().transpose(0, 1).cpu()
+    print("pytorch time half: ", (timestamp2-timestamp1)*1000)
+   
 
 matmul_cuda.cleanup
+
+
+Xin = torch.empty_like(Xmodel, device=cuda_device, requires_grad=False)
+for i in range(Xmodel.size(1)):
+    Xin[0][i] = Xmodel[0][i]
+
+Biasin = torch.empty_like(Biasmodel, device=cuda_device, requires_grad=False)
+for i in range(Biasmodel.size(1)):
+    Biasin[0][i] = Biasmodel[0][i]
+
+Bias = torch.ones((1, 128*12), device=cuda_device)*0.0
+#Bias = torch.ones((1, Biasmodel.size(0)), device=cuda_device)*0.0
+# for i in range(Biasmodel.size(0)):
+#     Bias[0][i] = 0 #Biasmodel[i]
+
 Ctest  = torch.ones(2, 2, device=cuda_device)#.half()
 ###output = matmul_cuda.evaluate_flexible_MLP(Cn, Xin, hin, C16, torch.Tensor([4, 1, 4]), 2, 2, Cout*16, 32, activation2)
 timestamp3  =  time.time()
@@ -111,13 +115,15 @@ for i in range(1):
 
 timestamp4  =  time.time()
 print("kernel time half: ", (timestamp4-timestamp3)*1000)
+#
 
+# for i in range(Cout*16):
+#     i += 0
+#     print(i, output[0][i+0*32], outputground[i][0])
 output = torch.reshape(output, (batchsizeAfterPadding, Cout*16)).transpose(0, 1)[:, :batchsizeTotal]
 
 output = output.cpu()
-
-
-# correctness check
+#outputground = outputground.cpu().float()
 outputground = outputgroundModel
 # s = 0
 # for i in range(outputground.size(0)):
@@ -132,4 +138,7 @@ outputground = outputgroundModel
 # print("false number", s)
 # print("kernel output size", output.size())
 # print("pytorch output size", outputground.size())
-
+# for i in range(128):
+#     for j in range(128):
+#         if i==j:
+#             print(i, X16[i*Cout*16+j][0])
