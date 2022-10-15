@@ -6,14 +6,6 @@ In this project, an inference framework using Tensor Cores and Code Generation i
 - Authors:  Shi, Da
 - Supervisor: Weiss, Sebastian
 - Technical University of Munich
-# Project Structure
-Use `designModel/train_model.py` to get a PyTorch fully-connected moedel, and save the structure and parameters in repository `models`.
-
-To design the arbitrary activation function, torch.fx can be used to replace all RELU function to the desired computation, but torch.fx limites the operation.  .
-
-An interface can load the model and feed it to the inference framework.
-
-
 
 # Environment
 Required environment:
@@ -50,14 +42,19 @@ After installation, user can call functions in the new package `matmul-cuda` by 
 # Application
 Running the function `matmul_cuda.evaluate_flexible_MLP(*params)` and providing the corresponding parameters can infer the provided model and input batches. An user interface is designed to enable the model trained with PyTorch framework to make faster inference on this project.
 
-## Train a PyTorch fully-connected network
+# Project Structure
+Use `designModel/train_model.py` to get a PyTorch fully-connected model, and save the structure and parameters in repository `models`.
 
-##进度
+An interface can load the model and feed it to the inference framework.
 
-## Evaluate the model
+To performe the evaluation, see experiments in the repository `experiments`.
+
+The binding function is `binding_flexible_MLP.cpp`. The kernel `MLPFlexible_shuffle.cuh` is for data shuffling between fragments. The kernels `MLPFlexible_32batches.cuh` and `MLPFlexible_32batches.cuh` are for different batch sizes with shared memory.
+
+## Evaluating the model
 Source Codes:
 ```sh
-python experiments/evaluation/evaluation_flexible_MLP5.py
+python experiments/evaluation/evaluation_flexible_MLP6_flex_hidden_channel.py
 
 ```
 It reports the kernel run time, correctness and the activition function designed by user.
