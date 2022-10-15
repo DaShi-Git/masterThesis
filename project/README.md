@@ -43,7 +43,7 @@ After installation, user can call functions in the new package `matmul-cuda` by 
 Running the function `matmul_cuda.evaluate_flexible_MLP(*params)` and providing the corresponding parameters can infer the provided model and input batches. An user interface is designed to enable the model trained with PyTorch framework to make faster inference on this project.
 
 # Project Structure
-Use `designModel/train_model.py` to get a PyTorch fully-connected model, and save the structure and parameters in repository `models`. The model checkpoint is large, so it is not included in the github origin repository.
+`designModel/train_model.py` is for designing a PyTorch fully-connected model, and saving the structure and parameters in repository `models`. The model checkpoint is large, so it is not included in the github origin repository.
 
 An interface can load the model and feed it to the inference framework, see the experiments.
 
