@@ -50,20 +50,31 @@ __device__ int getCurrentBiasIndex(int layer){
   return output;
 }
 
-// __device__	half d[32 * 32 *8];
-__device__	half a[128 * 128 *13];
-__device__	half c[128 * 12];
-//__device__	half d[32 * 16 * 8*3*2];
+// // __device__	half d[32 * 32 *8];
+//  __device__	half a[128 * 128 *3];
+// //__device__	half a[12288];
+// __device__	half c[128 * 12];
+// //__device__	half d[32 * 16 * 8*3*2];
 
 
 __global__ void EvaluateMLPFlexible(
-  cudaTextureObject_t texObj, kernel::Tensor2RW<real_t> test, kernel::Tensor2RW<real_t> weights, kernel::Tensor2RW<real_t> input, kernel::Tensor2RW<real_t> bias, kernel::Tensor2RW<real_t> output, int batchsizeTotal, int featuresize) {
+  //cudaTextureObject_t texObj, 
+  kernel::Tensor2RW<real_t> test, kernel::Tensor2RW<real_t> weights, kernel::Tensor2RW<real_t> input, kernel::Tensor2RW<real_t> bias, kernel::Tensor2RW<real_t> output, int batchsizeTotal, int featuresize) {
     using namespace nvcuda;
       
-  
-__shared__	half d[32 * 16 * 8*3*2];
+ alignas(32) half a[128 * 128 *3];
+//__device__	half a[12288];
+alignas(32)	half c[128 * 12];
+
+alignas(32) __shared__	half d[32 * 16 * 8*3*2];
+//__shared__	half d[12288];
+//__shared__	half a[12288];
 for(int i = threadIdx.x + blockDim.x*blockIdx.x; i < weights.size(1); i += blockDim.x*gridDim.x){
   a[i] = __float2half(weights[0][i]);
+}
+__syncthreads();
+for(int i = threadIdx.x + blockDim.x*blockIdx.x; i < bias.size(1); i += blockDim.x*gridDim.x){
+  c[i] = __float2half(bias[0][i]);
 }
 __syncthreads();
 
@@ -89,8 +100,8 @@ int warpNum = blockDim.x/32;
 if(loop * gridDim.x*warpNum*batch_size + blockIdx.x*warpNum*batch_size< batchsizeTotal){
 //__syncthreads();
 // loading input matrix
-int Cin16 = hiddenChannels[0];
-int Cout16 = hiddenChannels[1]; 
+int Cin16 = hiddenChannels[0] /16;
+int Cout16 = hiddenChannels[1]/16; 
 
 //#pragma unroll
 for(int i_d = 0; blockDim.x * i_d < Cin16*16*batch_size * warpNum; ++i_d){
@@ -120,29 +131,36 @@ for(int i_d = 0; blockDim.x * i_d < Cin16*16*batch_size * warpNum; ++i_d){
 for (int hidden = 0; hidden <sizeof(hiddenChannels)/sizeof(hiddenChannels[0]) -1; ++hidden){
 int currentWeightIndex = getCurrentWeightIndex(hidden);
 int currentBiasIndex = getCurrentBiasIndex(hidden);
-Cin16 = hiddenChannels[hidden];
-Cout16 = hiddenChannels[hidden+1];
+Cin16 = hiddenChannels[hidden]/16;
+Cout16 = hiddenChannels[hidden+1]/16;
 
 
-  //load C to memory c(biass)
-int i_c = 0;
-#pragma unroll
-while(blockDim.x * i_c < Cout16*16){
+//   //load C to memory c(biass)
+// int i_c = 0;
+// #pragma unroll
+// while(blockDim.x * i_c < Cout16*16){
   
-    int idx = blockDim.x * i_c + threadIdx.x;
-    if(idx < Cout16*16){
-      // printf("get in %d",  idx);
-        c[idx] = __float2half(bias[0][idx+currentBiasIndex]);//
-    }
-    i_c += 1;
-   // __syncthreads();
-}
+//     int idx = blockDim.x * i_c + threadIdx.x;
+//     if(idx < Cout16*16){
+//       // printf("get in %d",  idx);
+//         c[idx] = __float2half(bias[0][idx+currentBiasIndex]);//
+//     }
+//     i_c += 1;
+//    // __syncthreads();
+// }
+//  //load C to fragment c_frag(bias)
+//  #pragma unroll
+//     for (int cout = 0; cout < Cout16; ++cout)
+//   {
+//     wmma::load_matrix_sync(c_frag[cout][0], c + 16 * cout, 0, wmma::mem_col_major);
+//     wmma::load_matrix_sync(c_frag[cout][1], c + 16 * cout, 0, wmma::mem_col_major);
+//   }
  //load C to fragment c_frag(bias)
  #pragma unroll
     for (int cout = 0; cout < Cout16; ++cout)
   {
-    wmma::load_matrix_sync(c_frag[cout][0], c + 16 * cout, 0, wmma::mem_col_major);
-    wmma::load_matrix_sync(c_frag[cout][1], c + 16 * cout, 0, wmma::mem_col_major);
+    wmma::load_matrix_sync(c_frag[cout][0], currentBiasIndex + c + 16 * cout, 0, wmma::mem_col_major);
+    wmma::load_matrix_sync(c_frag[cout][1], currentBiasIndex + c + 16 * cout, 0, wmma::mem_col_major);
   }
 
 if (hidden>0){
@@ -417,8 +435,8 @@ for(int i_output = 0; blockDim.x * i_output < batch_size*Cout16*16 * warpNum; ++
 } //end of loop grid
 // printf("thread %d", threadIdx.x);
 
-// if (warpID==0 && threadIdx.x == 0){
-//   printf("cout %d loop %d thread %d\n", Cout16, loop, threadIdx.x);
+// if (blockIdx.x == 0 && warpID==0 && threadIdx.x == 0){
+//   //printf("cout %d loop %d thread %d\n", Cout16, loop, threadIdx.x);
 //       for (int i = 0; i < output.size(0); i++) {
 //         for (int j = 0; j < output.size(1); j++) {
 //           //output[i][j] = __half2float(d[i+j*output.size(0)]);
@@ -426,15 +444,16 @@ for(int i_output = 0; blockDim.x * i_output < batch_size*Cout16*16 * warpNum; ++
 //         }
 //       }
 
-//       for (int i = 0; i < batch_size*8*16; ++i){
+//       for (int i = 0; i < 1*32; ++i){
 //         //output[0][i] = __half2float(d[i]);
 //         // sWeightsHidden[i] = __(d[i]);
 //         // if (i % 32  == 0){ printf("\n");}
 //         // if (i % 32  == 0){ printf("\n");}
 //         //printf("d[%d], %.3f ", i, __half2float(d[i]));
-//         //printf("a[%d], %.3f ", i, __half2float(a[i]));
+//         printf("a[%d], %f ", i, __half2float(a[i]));
 
-//         //printf("weight[%d], %f", i, weights[0][i]);
+//         //printf("bias[%d], %.3f", i, bias[0][i]);
+//         //printf("bias[%d], %d", i, bias.size(1));
 //       //   int out = (int)hiddenStructure[0];
 //       //printf("test1[0], %f", __half2float(test[0][0]));
 //       //printf("test1[0], %f", test[0][0]);

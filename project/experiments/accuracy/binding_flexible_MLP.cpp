@@ -260,10 +260,10 @@ torch::Tensor evaluate_flexible_MLP(
   //       std::cout << i << std::endl;
   //   }
 
-half testhalf = (half)8.0;
-printf("test half value is %f", __half2float(testhalf));
-auto test_scalarType = test.scalar_type();
-auto test_data = test.data();
+// half testhalf = (half)8.0;
+// printf("test half value is %f", __half2float(testhalf));
+// auto test_scalarType = test.scalar_type();
+// auto test_data = test.data();
 // bool success_test = RENDERER_DISPATCH_FLOATING_TYPES(test_scalarType, "evaluateTest", [&]()
 // 		{
 //       //const auto accHiddenStructure = accessor< ::kernel::Tensor1Read<scalar_t>>(hiddenStructure);
@@ -277,67 +277,67 @@ auto test_data = test.data();
 
 
 
-// start texture memory
-const int height = 24;
-    const int width = 24;
-    float angle = 0.5;
+// // start texture memory
+// const int height = 24;
+//     const int width = 24;
+//     float angle = 0.5;
 
-    // Allocate and set some host data
-    float *h_data = (float *)std::malloc(sizeof(float) * width * height);
-    for (int i = 0; i < height * width; ++i)
-        h_data[i] = i;
+//     // Allocate and set some host data
+//     float *h_data = (float *)std::malloc(sizeof(float) * width * height);
+//     for (int i = 0; i < height * width; ++i)
+//         h_data[i] = i;
 
-    // Allocate CUDA array in device memory
-    cudaChannelFormatDesc channelDesc =
-        cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
-    cudaArray_t cuArray;
-    cudaMallocArray(&cuArray, &channelDesc, width, height);
+//     // Allocate CUDA array in device memory
+//     cudaChannelFormatDesc channelDesc =
+//         cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
+//     cudaArray_t cuArray;
+//     cudaMallocArray(&cuArray, &channelDesc, width, height);
 
-    // Set pitch of the source (the width in memory in bytes of the 2D array pointed
-    // to by src, including padding), we dont have any padding
-    const size_t spitch = width * sizeof(float);
-    // Copy data located at address h_data in host memory to device memory
-    cudaMemcpy2DToArray(cuArray, 0, 0, h_data, spitch, width * sizeof(float),
-                        height, cudaMemcpyHostToDevice);
+//     // Set pitch of the source (the width in memory in bytes of the 2D array pointed
+//     // to by src, including padding), we dont have any padding
+//     const size_t spitch = width * sizeof(float);
+//     // Copy data located at address h_data in host memory to device memory
+//     cudaMemcpy2DToArray(cuArray, 0, 0, h_data, spitch, width * sizeof(float),
+//                         height, cudaMemcpyHostToDevice);
 
-    // Specify texture
-    struct cudaResourceDesc resDesc;
-    memset(&resDesc, 0, sizeof(resDesc));
-    resDesc.resType = cudaResourceTypeArray;
-    resDesc.res.array.array = cuArray;
+//     // Specify texture
+//     struct cudaResourceDesc resDesc;
+//     memset(&resDesc, 0, sizeof(resDesc));
+//     resDesc.resType = cudaResourceTypeArray;
+//     resDesc.res.array.array = cuArray;
 
-    // Specify texture object parameters
-    struct cudaTextureDesc texDesc;
-    memset(&texDesc, 0, sizeof(texDesc));
-    texDesc.addressMode[0] = cudaAddressModeBorder;
-    texDesc.addressMode[1] = cudaAddressModeBorder;
-    //texDesc.filterMode = cudaFilterModeLinear;
-    texDesc.readMode = cudaReadModeElementType;
-    texDesc.normalizedCoords = 0;
+//     // Specify texture object parameters
+//     struct cudaTextureDesc texDesc;
+//     memset(&texDesc, 0, sizeof(texDesc));
+//     texDesc.addressMode[0] = cudaAddressModeBorder;
+//     texDesc.addressMode[1] = cudaAddressModeBorder;
+//     //texDesc.filterMode = cudaFilterModeLinear;
+//     texDesc.readMode = cudaReadModeElementType;
+//     texDesc.normalizedCoords = 0;
 
-    // Create texture object
-    cudaTextureObject_t texObj = 0;
-    cudaCreateTextureObject(&texObj, &resDesc, &texDesc, NULL);
+//     // Create texture object
+//     cudaTextureObject_t texObj = 0;
+//     cudaCreateTextureObject(&texObj, &resDesc, &texDesc, NULL);
 
-  //end texture memory
-half *source;
-source = (half *)malloc(sizeof(half)*256);
-for (int i=0; i<256; i++){
-  source[i]=(half)18.0;
+//   //end texture memory
+// half *source;
+// source = (half *)malloc(sizeof(half)*256);
+// for (int i=0; i<256; i++){
+//   source[i]=(half)18.0;
 
-}
-int sourceSize = 256 * sizeof(half);
-half* d_data = NULL;
-cudaMalloc((void**)&d_data, sourceSize);
-cudaMemcpy(d_data, source, sourceSize, cudaMemcpyHostToDevice);
-  //start normal cudaarray
+// }
+// int sourceSize = 256 * sizeof(half);
+// half* d_data = NULL;
+// cudaMalloc((void**)&d_data, sourceSize);
+// cudaMemcpy(d_data, source, sourceSize, cudaMemcpyHostToDevice);
+//   //start normal cudaarray
 
-  //end normal cudaarray
+//   //end normal cudaarray
 
 	// CHECK_CUDA(positions, true);
 	// CHECK_DIM(positions, 2);
 	// CHECK_SIZE(positions, 1, 3);
-	bool hasDirection = false;
+	//bool hasDirection = false;
 	// if (direction.defined())
 	// {
 	// 	hasDirection = true;
@@ -431,106 +431,106 @@ cudaMemcpy(d_data, source, sourceSize, cudaMemcpyHostToDevice);
 //   printf("N: %d (%d x %d)\n", N_GLOBAL, N, N_TILES);
 //   printf("K: %d (%d x %d)\n", K_GLOBAL, K, K_TILES);
 
-  half *A_h = NULL;
-  half *B_h = NULL;
-  half *C_h = NULL;
-#if CPU_DEBUG
-  float *result_hD = NULL;
-  float *result_host = NULL;
-#endif
+//   half *A_h = NULL;
+//   half *B_h = NULL;
+//   half *C_h = NULL;
+// #if CPU_DEBUG
+//   float *result_hD = NULL;
+//   float *result_host = NULL;
+// #endif
 
-  A_h = (half *)malloc(sizeof(half) * 64 * 64);
-  B_h = (half *)malloc(sizeof(half) * K_GLOBAL * N_GLOBAL);
-  C_h = (half *)malloc(sizeof(half) * M_GLOBAL * N_GLOBAL);
-#if CPU_DEBUG
-  result_hD = (float *)malloc(sizeof(float) * M_GLOBAL * N_GLOBAL);
-  result_host = (float *)malloc(sizeof(float) * M_GLOBAL * N_GLOBAL);
-#endif
+//   A_h = (half *)malloc(sizeof(half) * 64 * 64);
+//   B_h = (half *)malloc(sizeof(half) * K_GLOBAL * N_GLOBAL);
+//   C_h = (half *)malloc(sizeof(half) * M_GLOBAL * N_GLOBAL);
+// #if CPU_DEBUG
+//   result_hD = (float *)malloc(sizeof(float) * M_GLOBAL * N_GLOBAL);
+//   result_host = (float *)malloc(sizeof(float) * M_GLOBAL * N_GLOBAL);
+// #endif
 
-  half *A = NULL;
-  half *B = NULL;
-  half *C = NULL;
-  float *D = NULL;
+//   half *A = NULL;
+//   half *B = NULL;
+//   half *C = NULL;
+//   float *D = NULL;
 
-//   cudaMalloc(reinterpret_cast<void **>(&A),
-//                              sizeof(half) * M_GLOBAL * K_GLOBAL);
-//   cudaMalloc(reinterpret_cast<void **>(&B),
-//                              sizeof(half) * N_GLOBAL * K_GLOBAL);
-//   cudaMalloc(reinterpret_cast<void **>(&C),
-//                              sizeof(float) * M_GLOBAL * N_GLOBAL);
-//   cudaMalloc(reinterpret_cast<void **>(&D),
-//                              sizeof(float) * M_GLOBAL * N_GLOBAL);
-cudaMallocManaged((void **)&A, sizeof(half) * 64 * 64);
-cudaMallocManaged((void **)&B, sizeof(half) * N_GLOBAL * K_GLOBAL);
-cudaMallocManaged((void **)&C, sizeof(half) * M_GLOBAL * N_GLOBAL);
-cudaMallocManaged((void **)&D, sizeof(float) * M_GLOBAL * N_GLOBAL);
+// //   cudaMalloc(reinterpret_cast<void **>(&A),
+// //                              sizeof(half) * M_GLOBAL * K_GLOBAL);
+// //   cudaMalloc(reinterpret_cast<void **>(&B),
+// //                              sizeof(half) * N_GLOBAL * K_GLOBAL);
+// //   cudaMalloc(reinterpret_cast<void **>(&C),
+// //                              sizeof(float) * M_GLOBAL * N_GLOBAL);
+// //   cudaMalloc(reinterpret_cast<void **>(&D),
+// //                              sizeof(float) * M_GLOBAL * N_GLOBAL);
+// cudaMallocManaged((void **)&A, sizeof(half) * 64 * 64);
+// cudaMallocManaged((void **)&B, sizeof(half) * N_GLOBAL * K_GLOBAL);
+// cudaMallocManaged((void **)&C, sizeof(half) * M_GLOBAL * N_GLOBAL);
+// cudaMallocManaged((void **)&D, sizeof(float) * M_GLOBAL * N_GLOBAL);
 
-//   assert(((unsigned long long)A) % 128 == 0);
-//   assert(((unsigned long long)B) % 128 == 0);
-//   assert(((unsigned long long)C) % 128 == 0);
-//   assert(((unsigned long long)D) % 128 == 0);
+// //   assert(((unsigned long long)A) % 128 == 0);
+// //   assert(((unsigned long long)B) % 128 == 0);
+// //   assert(((unsigned long long)C) % 128 == 0);
+// //   assert(((unsigned long long)D) % 128 == 0);
 
   
-  init_host_matrices(A_h, B_h, C_h);
-  // for (int i = 0; i < 64; i++) {
-  //   for (int j = 0; j < 64; j++) {
-  //     A_h[i * 64 + j] = test[i * 64 + j][0];
-  //   }
-  // }
+//   init_host_matrices(A_h, B_h, C_h);
+//   // for (int i = 0; i < 64; i++) {
+//   //   for (int j = 0; j < 64; j++) {
+//   //     A_h[i * 64 + j] = test[i * 64 + j][0];
+//   //   }
+//   // }
 
-  //printf("Preparing data for GPU...\n");
+//   //printf("Preparing data for GPU...\n");
 
-  cudaMemcpy(A, A_h, sizeof(half) * M_GLOBAL * K_GLOBAL,
-                             cudaMemcpyHostToDevice);
-  cudaMemcpy(B, B_h, sizeof(half) * N_GLOBAL * K_GLOBAL,
-                             cudaMemcpyHostToDevice);
-  cudaMemcpy(C, C_h, sizeof(half) * M_GLOBAL * N_GLOBAL,
-                             cudaMemcpyHostToDevice);
-  cudaMemset(D, 0, sizeof(float) * M_GLOBAL * N_GLOBAL);
-
-
-//start L2 cache
-// cudaStream_t stream;
-// cudaStreamCreate(&stream);                                                                  // Create CUDA stream
-
-// cudaDeviceProp prop;                                                                        // CUDA device properties variable
-// //cudaGetDeviceProperties( &prop, device_id);                                                 // Query GPU properties
-// size_t size = min( int(prop.l2CacheSize * 0.75) , prop.persistingL2CacheMaxSize );
-// cudaDeviceSetLimit( cudaLimitPersistingL2CacheSize, size);                                  // set-aside 3/4 of L2 cache for persisting accesses or the max allowed
-
-int num_bytes = sizeof(half) * M_GLOBAL * K_GLOBAL*2;
-//int num_bytes = sizeof(half) *256;
-size_t window_size = num_bytes;
-//size_t window_size = min(prop.accessPolicyMaxWindowSize, num_bytes);                        // Select minimum of user defined num_bytes and max window size.
-
-cudaStreamAttrValue stream_attribute;                                                       // Stream level attributes data structure
-stream_attribute.accessPolicyWindow.base_ptr  = reinterpret_cast<void*>(B);               // Global Memory data pointer
-stream_attribute.accessPolicyWindow.num_bytes = window_size;                                // Number of bytes for persistence access
-stream_attribute.accessPolicyWindow.hitRatio  = 1.0;                                        // Hint for cache hit ratio
-stream_attribute.accessPolicyWindow.hitProp   = cudaAccessPropertyPersisting;               // Persistence Property
-stream_attribute.accessPolicyWindow.missProp  = cudaAccessPropertyStreaming;                // Type of access property on cache miss
-
-cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);   // Set the attributes to a CUDA Stream
+//   cudaMemcpy(A, A_h, sizeof(half) * M_GLOBAL * K_GLOBAL,
+//                              cudaMemcpyHostToDevice);
+//   cudaMemcpy(B, B_h, sizeof(half) * N_GLOBAL * K_GLOBAL,
+//                              cudaMemcpyHostToDevice);
+//   cudaMemcpy(C, C_h, sizeof(half) * M_GLOBAL * N_GLOBAL,
+//                              cudaMemcpyHostToDevice);
+//   cudaMemset(D, 0, sizeof(float) * M_GLOBAL * N_GLOBAL);
 
 
+// //start L2 cache
+// // cudaStream_t stream;
+// // cudaStreamCreate(&stream);                                                                  // Create CUDA stream
 
-  // enum {
-  //   // Compute the right amount of shared memory to request.
-  //   // We need shared memory to hold per-CTA C and D matrix tiles, and to cache
-  //   // per-CTA chunks
-  //   // of the A and B matrices. Therefore, the right amount to request is the
-  //   // maximum of those
-  //   // two numbers.
-  //   SHMEM_SZ = MAX(
-  //       sizeof(half) * (BLOCK_COL_TILES * M) * (CHUNK_K * K + SKEW_HALF) * 2,
-  //       M * (BLOCK_ROW_WARPS * WARP_ROW_TILES) * N *
-  //           (BLOCK_COL_WARPS * WARP_COL_TILES) * sizeof(float))
-  // };
+// // cudaDeviceProp prop;                                                                        // CUDA device properties variable
+// // //cudaGetDeviceProperties( &prop, device_id);                                                 // Query GPU properties
+// // size_t size = min( int(prop.l2CacheSize * 0.75) , prop.persistingL2CacheMaxSize );
+// // cudaDeviceSetLimit( cudaLimitPersistingL2CacheSize, size);                                  // set-aside 3/4 of L2 cache for persisting accesses or the max allowed
 
-  //printf("Required shared memory size: %lu Kb\n", SHMEM_SZ / 1024UL);
+// int num_bytes = sizeof(half) * M_GLOBAL * K_GLOBAL*2;
+// //int num_bytes = sizeof(half) *256;
+// size_t window_size = num_bytes;
+// //size_t window_size = min(prop.accessPolicyMaxWindowSize, num_bytes);                        // Select minimum of user defined num_bytes and max window size.
 
-  float alpha = 1.0f;
-  float beta = 1.0f;
+// cudaStreamAttrValue stream_attribute;                                                       // Stream level attributes data structure
+// stream_attribute.accessPolicyWindow.base_ptr  = reinterpret_cast<void*>(B);               // Global Memory data pointer
+// stream_attribute.accessPolicyWindow.num_bytes = window_size;                                // Number of bytes for persistence access
+// stream_attribute.accessPolicyWindow.hitRatio  = 1.0;                                        // Hint for cache hit ratio
+// stream_attribute.accessPolicyWindow.hitProp   = cudaAccessPropertyPersisting;               // Persistence Property
+// stream_attribute.accessPolicyWindow.missProp  = cudaAccessPropertyStreaming;                // Type of access property on cache miss
+
+// cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);   // Set the attributes to a CUDA Stream
+
+
+
+//   // enum {
+//   //   // Compute the right amount of shared memory to request.
+//   //   // We need shared memory to hold per-CTA C and D matrix tiles, and to cache
+//   //   // per-CTA chunks
+//   //   // of the A and B matrices. Therefore, the right amount to request is the
+//   //   // maximum of those
+//   //   // two numbers.
+//   //   SHMEM_SZ = MAX(
+//   //       sizeof(half) * (BLOCK_COL_TILES * M) * (CHUNK_K * K + SKEW_HALF) * 2,
+//   //       M * (BLOCK_ROW_WARPS * WARP_ROW_TILES) * N *
+//   //           (BLOCK_COL_WARPS * WARP_COL_TILES) * sizeof(float))
+//   // };
+
+//   //printf("Required shared memory size: %lu Kb\n", SHMEM_SZ / 1024UL);
+
+//   float alpha = 1.0f;
+//   float beta = 1.0f;
 
   cudaEvent_t start, stop;
 
@@ -538,38 +538,38 @@ cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_at
   cudaEventCreate(&stop);
   cudaEventRecord(start);
 
-  // If enough shared memory available on the GPU use high performant kernel
-  //if (1 < 0) {
-    // printf("Computing... using high performance kernel compute_gemm \n");
+//   // If enough shared memory available on the GPU use high performant kernel
+//   //if (1 < 0) {
+//     // printf("Computing... using high performance kernel compute_gemm \n");
 
-    // checkCudaErrors(cudaFuncSetAttribute(
-    //     compute_gemm, cudaFuncAttributeMaxDynamicSharedMemorySize, SHMEM_SZ));
-    // checkKernelErrors(
-    //     (compute_gemm<<<deviceProp.multiProcessorCount, THREADS_PER_BLOCK,
-    //                     SHMEM_SZ>>>(A, B, C, D, alpha, beta)));
-#if CPU_DEBUG
-    cudaMemcpy(result_hD, D,
-                               sizeof(float) * M_GLOBAL * N_GLOBAL,
-                               cudaMemcpyDeviceToHost);
-#endif
-  //} else {
+//     // checkCudaErrors(cudaFuncSetAttribute(
+//     //     compute_gemm, cudaFuncAttributeMaxDynamicSharedMemorySize, SHMEM_SZ));
+//     // checkKernelErrors(
+//     //     (compute_gemm<<<deviceProp.multiProcessorCount, THREADS_PER_BLOCK,
+//     //                     SHMEM_SZ>>>(A, B, C, D, alpha, beta)));
+// #if CPU_DEBUG
+//     cudaMemcpy(result_hD, D,
+//                                sizeof(float) * M_GLOBAL * N_GLOBAL,
+//                                cudaMemcpyDeviceToHost);
+// #endif
+//   //} else {
     dim3 gridDim;
     dim3 blockDim;
 
     
-    blockDim.x = 192;//96or192, by bs=16, 384
+    blockDim.x = 768;//96or192, by bs=16, 384
     blockDim.y = 1;
 
     // gridDim.x = (M_GLOBAL + (WMMA_M * blockDim.x / 32 - 1)) /
     //             (WMMA_M * blockDim.x / 32);
     // gridDim.y = (N_GLOBAL + WMMA_N * blockDim.y - 1) / (WMMA_N * blockDim.y);
-    gridDim.x = 4;
+    gridDim.x = 68;
     gridDim.y = 1;
-    printf("gridDim.x, %d, gridDim.y, %d", gridDim.x, gridDim.y);
-for(int i = 0; i<4; ++i){
-      //test1[i] = hiddenStructure_notuse[i];
-      //printf("hiddenstructure[i], %d ", int(hiddenStructure[i]));
-    }
+    //printf("gridDim.x, %d, gridDim.y, %d", gridDim.x, gridDim.y);
+// for(int i = 0; i<4; ++i){
+//       //test1[i] = hiddenStructure_notuse[i];
+//       //printf("hiddenstructure[i], %d ", int(hiddenStructure[i]));
+//     }
 
 
     //printf("Computing... using simple_wmma_gemm kernel\n");
@@ -608,7 +608,7 @@ for(int i = 0; i<4; ++i){
       const auto accTest = accessor< ::kernel::Tensor2Read<scalar_t>>(test);
       // const auto accDirection = direction;
 			// const auto accDensity = densities;
-			const void *args[] = {&texObj, &test, &accWeights, &accInput, &accBias, &accOutput, &batchsizeTotal, &featuresize};
+			const void *args[] = {&test, &accWeights, &accInput, &accBias, &accOutput, &batchsizeTotal, &featuresize};
 			auto result = cuLaunchKernel(
 				fun.fun(), gridDim.x, gridDim.y, 1, blockDim.x, blockDim.y, 1,
 				0, stream, const_cast<void**>(args), NULL);
@@ -622,128 +622,128 @@ for(int i = 0; i<4; ++i){
 	
 	if (!success) throw std::runtime_error("Error during rendering!");
 
-	#if CPU_DEBUG
-    cudaMemcpy(result_hD, D,
-                               sizeof(float) * M_GLOBAL * N_GLOBAL,
-                               cudaMemcpyDeviceToHost);
-	#endif
+// 	#if CPU_DEBUG
+//     cudaMemcpy(result_hD, D,
+//                                sizeof(float) * M_GLOBAL * N_GLOBAL,
+//                                cudaMemcpyDeviceToHost);
+// 	#endif
 	cudaEventRecord(stop);
   cudaEventSynchronize(stop);
 
-#if CPU_DEBUG
-  printf("Verifying correctness of the computations...\n");
+// #if CPU_DEBUG
+//   printf("Verifying correctness of the computations...\n");
 
-  memcpy(result_host, C_h, sizeof(float) * M_GLOBAL * N_GLOBAL);
+//   memcpy(result_host, C_h, sizeof(float) * M_GLOBAL * N_GLOBAL);
 
-  matMultiplyOnHost(A_h, B_h, result_host, alpha, beta, M_GLOBAL, K_GLOBAL,
-                    K_GLOBAL, N_GLOBAL, M_GLOBAL, N_GLOBAL);
-					for (int i = 0; i < 64; ++i){
-        //sWeightsHidden[i] = __float2half(d[i]);
-        //printf("result_host[%d], %.3f ", i, result_host[i]);
-      //printf("a[%d], %.3f ", i, __half2float(b[i]));
-        if (i % 16  == 0){ printf("\n");}
-      }
+//   matMultiplyOnHost(A_h, B_h, result_host, alpha, beta, M_GLOBAL, K_GLOBAL,
+//                     K_GLOBAL, N_GLOBAL, M_GLOBAL, N_GLOBAL);
+// 					for (int i = 0; i < 64; ++i){
+//         //sWeightsHidden[i] = __float2half(d[i]);
+//         //printf("result_host[%d], %.3f ", i, result_host[i]);
+//       //printf("a[%d], %.3f ", i, __half2float(b[i]));
+//         if (i % 16  == 0){ printf("\n");}
+//       }
 
-//   for (int i = 0; i < N_GLOBAL * M_GLOBAL; i++) {
-//     if (fabs(result_hD[i] - result_host[i]) > 0.1f)
-//       printf("mismatch i=%d result_hD=%f result_host=%f\n", i, result_hD[i],
-//              result_host[i]);
-  //}
-  free(result_hD);
-  free(result_host);
-#endif
+// //   for (int i = 0; i < N_GLOBAL * M_GLOBAL; i++) {
+// //     if (fabs(result_hD[i] - result_host[i]) > 0.1f)
+// //       printf("mismatch i=%d result_hD=%f result_host=%f\n", i, result_hD[i],
+// //              result_host[i]);
+//   //}
+//   free(result_hD);
+//   free(result_host);
+// #endif
 
   float milliseconds = 0;
 
   cudaEventElapsedTime(&milliseconds, start, stop);
 
   printf("Time: %f ms\n", milliseconds);
-  printf("TFLOPS: %.2f\n", static_cast<double>((static_cast<double>(M_GLOBAL) *
-                                                N_GLOBAL * K_GLOBAL * 2) /
-                                               (milliseconds / 1000.)) /
-                               1e12);
+  // printf("TFLOPS: %.2f\n", static_cast<double>((static_cast<double>(M_GLOBAL) *
+  //                                               N_GLOBAL * K_GLOBAL * 2) /
+  //                                              (milliseconds / 1000.)) /
+  //                              1e12);
 
-  free(A_h);
-  free(B_h);
-  free(C_h);
-  cudaFree(reinterpret_cast<void *>(A));
-  cudaFree(reinterpret_cast<void *>(B));
-  cudaFree(reinterpret_cast<void *>(C));
-  cudaFree(reinterpret_cast<void *>(D));
-int deviceCount;
-    // cudaGetDeviceCount(&deviceCount);
-    // for(int i=0;i<deviceCount;i++)
-    // {
-    //     cudaDeviceProp deviceProp;
-    //     cudaGetDeviceProperties(&deviceProp, i);
-    //     // std::cout << "使用GPU device " << i << ": " << devProp.name << std::endl;
-    //     // std::cout << "设备全局内存总量： " << devProp.totalGlobalMem / 1024 / 1024 << "MB" << std::endl;
-    //     // std::cout << "SM的数量：" << devProp.multiProcessorCount << std::endl;
-    //     // std::cout << "每个线程块的共享内存大小：" << devProp.sharedMemPerBlock / 1024.0 << " KB" << std::endl;
-    //     // std::cout << "每个线程块的最大线程数：" << devProp.maxThreadsPerBlock << std::endl;
-    //     // std::cout << "设备上一个线程块（Block）种可用的32位寄存器数量： " << devProp.regsPerBlock << std::endl;
-    //     // std::cout << "每个EM的最大线程数：" << devProp.maxThreadsPerMultiProcessor << std::endl;
-    //     // std::cout << "每个EM的最大线程束数：" << devProp.maxThreadsPerMultiProcessor / 32 << std::endl;
-    //     // std::cout << "设备上多处理器的数量： " << devProp.multiProcessorCount << std::endl;
-    //     //std::cout << "L2最大窗口： " << cudaDeviceProp::accessPolicyMaxWindowSize << std::endl;
-    //     printf("  GPU Clock rate:                               %.0f MHz (%0.2f GHz)\n",
-    //         deviceProp.clockRate*1e-3f,deviceProp.clockRate*1e-6f);
-    // printf("  Memory Bus width:                             %d-bits\n",
-    //         deviceProp.memoryBusWidth);
-    // if (deviceProp.l2CacheSize)
-    // {
-    //     printf("  L2 Cache Size:                            	%d bytes\n",
-    //             deviceProp.l2CacheSize);
-    // }
-    // printf("  Max Texture Dimension Size (x,y,z)            1D=(%d),2D=(%d,%d),3D=(%d,%d,%d)\n",
-    //         deviceProp.maxTexture1D,deviceProp.maxTexture2D[0],deviceProp.maxTexture2D[1]
-    //         ,deviceProp.maxTexture3D[0],deviceProp.maxTexture3D[1],deviceProp.maxTexture3D[2]);
-    // printf("  Max Layered Texture Size (dim) x layers       1D=(%d) x %d,2D=(%d,%d) x %d\n",
-    //         deviceProp.maxTexture1DLayered[0],deviceProp.maxTexture1DLayered[1],
-    //         deviceProp.maxTexture2DLayered[0],deviceProp.maxTexture2DLayered[1],
-    //         deviceProp.maxTexture2DLayered[2]);
-    // printf("  Total amount of constant memory               %lu bytes\n",
-    //         deviceProp.totalConstMem);
-    // printf("  Total amount of shared memory per block:      %lu bytes\n",
-    //         deviceProp.sharedMemPerBlock);
-    // printf("  Total number of registers available per block:%d\n",
-    //         deviceProp.regsPerBlock);
-    // printf("  Wrap size:                                    %d\n",deviceProp.warpSize);
-    // printf("  Maximun number of thread per multiprocesser:  %d\n",
-    //         deviceProp.maxThreadsPerMultiProcessor);
-    // printf("  Maximun number of thread per block:           %d\n",
-    //         deviceProp.maxThreadsPerBlock);
-    // printf("  Maximun size of each dimension of a block:    %d x %d x %d\n",
-    //         deviceProp.maxThreadsDim[0],deviceProp.maxThreadsDim[1],deviceProp.maxThreadsDim[2]);
-    // printf("  Maximun size of each dimension of a grid:     %d x %d x %d\n",
-    //         deviceProp.maxGridSize[0],
-	  //   deviceProp.maxGridSize[1],
-	  //   deviceProp.maxGridSize[2]);
-    // printf("  Maximu memory pitch                           %lu bytes\n",deviceProp.memPitch);
-    //     std::cout << "======================================================" << std::endl;     
+//   free(A_h);
+//   free(B_h);
+//   free(C_h);
+//   cudaFree(reinterpret_cast<void *>(A));
+//   cudaFree(reinterpret_cast<void *>(B));
+//   cudaFree(reinterpret_cast<void *>(C));
+//   cudaFree(reinterpret_cast<void *>(D));
+// int deviceCount;
+//     // cudaGetDeviceCount(&deviceCount);
+//     // for(int i=0;i<deviceCount;i++)
+//     // {
+//     //     cudaDeviceProp deviceProp;
+//     //     cudaGetDeviceProperties(&deviceProp, i);
+//     //     // std::cout << "使用GPU device " << i << ": " << devProp.name << std::endl;
+//     //     // std::cout << "设备全局内存总量： " << devProp.totalGlobalMem / 1024 / 1024 << "MB" << std::endl;
+//     //     // std::cout << "SM的数量：" << devProp.multiProcessorCount << std::endl;
+//     //     // std::cout << "每个线程块的共享内存大小：" << devProp.sharedMemPerBlock / 1024.0 << " KB" << std::endl;
+//     //     // std::cout << "每个线程块的最大线程数：" << devProp.maxThreadsPerBlock << std::endl;
+//     //     // std::cout << "设备上一个线程块（Block）种可用的32位寄存器数量： " << devProp.regsPerBlock << std::endl;
+//     //     // std::cout << "每个EM的最大线程数：" << devProp.maxThreadsPerMultiProcessor << std::endl;
+//     //     // std::cout << "每个EM的最大线程束数：" << devProp.maxThreadsPerMultiProcessor / 32 << std::endl;
+//     //     // std::cout << "设备上多处理器的数量： " << devProp.multiProcessorCount << std::endl;
+//     //     //std::cout << "L2最大窗口： " << cudaDeviceProp::accessPolicyMaxWindowSize << std::endl;
+//     //     printf("  GPU Clock rate:                               %.0f MHz (%0.2f GHz)\n",
+//     //         deviceProp.clockRate*1e-3f,deviceProp.clockRate*1e-6f);
+//     // printf("  Memory Bus width:                             %d-bits\n",
+//     //         deviceProp.memoryBusWidth);
+//     // if (deviceProp.l2CacheSize)
+//     // {
+//     //     printf("  L2 Cache Size:                            	%d bytes\n",
+//     //             deviceProp.l2CacheSize);
+//     // }
+//     // printf("  Max Texture Dimension Size (x,y,z)            1D=(%d),2D=(%d,%d),3D=(%d,%d,%d)\n",
+//     //         deviceProp.maxTexture1D,deviceProp.maxTexture2D[0],deviceProp.maxTexture2D[1]
+//     //         ,deviceProp.maxTexture3D[0],deviceProp.maxTexture3D[1],deviceProp.maxTexture3D[2]);
+//     // printf("  Max Layered Texture Size (dim) x layers       1D=(%d) x %d,2D=(%d,%d) x %d\n",
+//     //         deviceProp.maxTexture1DLayered[0],deviceProp.maxTexture1DLayered[1],
+//     //         deviceProp.maxTexture2DLayered[0],deviceProp.maxTexture2DLayered[1],
+//     //         deviceProp.maxTexture2DLayered[2]);
+//     // printf("  Total amount of constant memory               %lu bytes\n",
+//     //         deviceProp.totalConstMem);
+//     // printf("  Total amount of shared memory per block:      %lu bytes\n",
+//     //         deviceProp.sharedMemPerBlock);
+//     // printf("  Total number of registers available per block:%d\n",
+//     //         deviceProp.regsPerBlock);
+//     // printf("  Wrap size:                                    %d\n",deviceProp.warpSize);
+//     // printf("  Maximun number of thread per multiprocesser:  %d\n",
+//     //         deviceProp.maxThreadsPerMultiProcessor);
+//     // printf("  Maximun number of thread per block:           %d\n",
+//     //         deviceProp.maxThreadsPerBlock);
+//     // printf("  Maximun size of each dimension of a block:    %d x %d x %d\n",
+//     //         deviceProp.maxThreadsDim[0],deviceProp.maxThreadsDim[1],deviceProp.maxThreadsDim[2]);
+//     // printf("  Maximun size of each dimension of a grid:     %d x %d x %d\n",
+//     //         deviceProp.maxGridSize[0],
+// 	  //   deviceProp.maxGridSize[1],
+// 	  //   deviceProp.maxGridSize[2]);
+//     // printf("  Maximu memory pitch                           %lu bytes\n",deviceProp.memPitch);
+//     //     std::cout << "======================================================" << std::endl;     
         
-    // }
+//     // }
 
 
 
-// Destroy texture object
-    cudaDestroyTextureObject(texObj);
+// // Destroy texture object
+//     cudaDestroyTextureObject(texObj);
 
-    // Free device memory
-    cudaFreeArray(cuArray);
-    //cudaFree(output);
+//     // Free device memory
+//     cudaFreeArray(cuArray);
+//     //cudaFree(output);
 
-    // Free host memory
-    free(h_data);
+//     // Free host memory
+//     free(h_data);
 	
-//global
-cudaFree(d_data);
-free(source);
+// //global
+// cudaFree(d_data);
+// free(source);
 
-//L2 cache
-stream_attribute.accessPolicyWindow.num_bytes = 0;                                          // Setting the window size to 0 disable it
-cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);   // Overwrite the access policy attribute to a CUDA Stream
-cudaCtxResetPersistingL2Cache();                                                            // Remove any persistent lines in L2 
+// //L2 cache
+// stream_attribute.accessPolicyWindow.num_bytes = 0;                                          // Setting the window size to 0 disable it
+// cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);   // Overwrite the access policy attribute to a CUDA Stream
+// cudaCtxResetPersistingL2Cache();                                                            // Remove any persistent lines in L2 
 
 	return output;
 }
